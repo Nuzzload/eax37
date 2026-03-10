@@ -2,6 +2,7 @@
 
 [ext_resource type="FontFile" uid="uid://cw7cdtqrwdmn8" path="res://font.tres" id="1_7d6gb"]
 [ext_resource type="Script" uid="uid://cuo4trjjad1xb" path="res://terminal_text.gd" id="2_b5qft"]
+[ext_resource type="Script" uid="uid://cj4x0lvr73g3v" path="res://filenode.gd" id="3_b5qft"]
 
 [node name="Terminal" type="Control" unique_id=1656379642]
 layout_mode = 3
@@ -35,3 +36,15 @@ shortcut_keys_enabled = false
 deselect_on_focus_loss_enabled = false
 drag_and_drop_selection_enabled = false
 script = ExtResource("2_b5qft")
+
+[node name="filesystem_root" type="Node" parent="TerminalText" unique_id=2073075414]
+
+[node name="documents" type="Node" parent="TerminalText/filesystem_root" unique_id=1472262731]
+
+[node name="file1_txt" type="Node" parent="TerminalText/filesystem_root/documents" unique_id=1152987163]
+script = ExtResource("3_b5qft")
+
+[node name="password_txt" type="Node" parent="TerminalText/filesystem_root" unique_id=472443028]
+script = ExtResource("3_b5qft")
+filename = "password.txt"
+content = "mysuperpassword"
