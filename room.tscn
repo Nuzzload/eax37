@@ -1,8 +1,8 @@
 [gd_scene format=3 uid="uid://0n7hpdewbeqq"]
 
 [ext_resource type="Script" uid="uid://cbnut34kftini" path="res://room_scene.gd" id="1_bisa2"]
-[ext_resource type="PackedScene" uid="uid://dnvnmyvlrjqdn" path="res://terminal.tscn" id="2_4o3f6"]
-[ext_resource type="Texture2D" uid="uid://bdld4pxuvd33n" path="res://new_viewport_texture.tres" id="3_4o3f6"]
+[ext_resource type="Texture2D" uid="uid://bdld4pxuvd33n" path="res://os/apps/terminal/new_viewport_texture.tres" id="3_4o3f6"]
+[ext_resource type="PackedScene" uid="uid://bk4d6fhfa17ou" path="res://os/OS.tscn" id="3_v5vuv"]
 
 [sub_resource type="QuadMesh" id="QuadMesh_bisa2"]
 size = Vector2(1.18, 0.7)
@@ -16,11 +16,14 @@ albedo_texture = ExtResource("3_4o3f6")
 script = ExtResource("1_bisa2")
 
 [node name="SubViewport" type="SubViewport" parent="." unique_id=1900720108]
+handle_input_locally = false
+gui_disable_input = true
+size = Vector2i(1152, 648)
 render_target_update_mode = 4
 
-[node name="Terminal" parent="SubViewport" unique_id=1656379642 instance=ExtResource("2_4o3f6")]
+[node name="OS" parent="SubViewport" unique_id=1840494939 instance=ExtResource("3_v5vuv")]
 
-[node name="MeshInstance3D" type="MeshInstance3D" parent="." unique_id=897669755]
+[node name="ScreenMesh" type="MeshInstance3D" parent="." unique_id=897669755]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.35, -0.285)
 mesh = SubResource("QuadMesh_bisa2")
 surface_material_override/0 = SubResource("StandardMaterial3D_bisa2")

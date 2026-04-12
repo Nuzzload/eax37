@@ -1,0 +1,66 @@
+[gd_scene format=3 uid="uid://bk4d6fhfa17ou"]
+
+[ext_resource type="Script" uid="uid://cx5388hx476ob" path="res://os/os_main.gd" id="1_r31lc"]
+[ext_resource type="Script" uid="uid://c1mkicepqis7e" path="res://os/window_manager.gd" id="3_ifhlw"]
+[ext_resource type="PackedScene" uid="uid://b7xkgeka1gv5i" path="res://os/ui/desktop_icons.tscn" id="4_skjxj"]
+[ext_resource type="PackedScene" uid="uid://bwfkwog1ijjo5" path="res://os/ui/taskbar.tscn" id="4_t6h0g"]
+[ext_resource type="Script" uid="uid://2t6c1licu8d" path="res://os/os_cursor.gd" id="5_skjxj"]
+
+[node name="OS" type="Control" unique_id=1840494939]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_r31lc")
+
+[node name="Wallpaper" type="TextureRect" parent="." unique_id=2094554730]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+expand_mode = 1
+
+[node name="WindowManager" type="Control" parent="." unique_id=1096849955]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 1
+script = ExtResource("3_ifhlw")
+
+[node name="DesktopIcons" parent="." unique_id=555302081 instance=ExtResource("4_skjxj")]
+layout_mode = 1
+anchors_preset = -1
+offset_left = 16.0
+offset_top = 16.0
+
+[node name="Taskbar" parent="." unique_id=164573983 instance=ExtResource("4_t6h0g")]
+layout_mode = 1
+anchors_preset = -1
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = -40.0
+offset_right = 0.0
+offset_bottom = 0.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="CursorLayer" type="CanvasLayer" parent="." unique_id=308589704]
+layer = 128
+
+[node name="Cursor" type="Control" parent="CursorLayer" unique_id=532790925]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("5_skjxj")

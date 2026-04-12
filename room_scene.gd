@@ -16,6 +16,13 @@ const COL_METAL := Color(0.15, 0.15, 0.2)
 var camera: Camera3D
 var is_at_terminal := false
 
+# Curseur custom dans le SubViewport
+var os_cursor = null
+var vp_cursor_pos := Vector2(576, 324)  # centre par défaut (1152x648 / 2)
+# Taille de l'écran 3D en world units (doit correspondre à la QuadMesh)
+const SCREEN_WORLD_SIZE := Vector2(1.18, 0.70)
+const VP_SIZE := Vector2(1152, 648)
+
 # Position caméra libre (vue de la pièce)
 const CAM_FREE_POS := Vector3(0.3, 1.4, 1.8)
 const CAM_FREE_ROT := Vector3(-8, -5, 0)
@@ -47,6 +54,20 @@ func _ready():
 	_build_wall_decorations()
 	_setup_lights()
 	_setup_camera()
+	# Confine la souris dans la fenêtre dès le départ
+	Input.mouse_mode = Input.MOUSE_MODE_CONFINED
+
+
+func _notification(what: int):
+	# Quand la fenêtre reprend le focus, reconfine la souris
+	if what == NOTIFICATION_APPLICATION_FOCUS_IN:
+		if is_at_terminal:
+			Input.mouse_mode = Input.MOUSE_MODE_HIDDEN
+		else:
+			Input.mouse_mode = Input.MOUSE_MODE_CONFINED
+	# Quand on perd le focus, libère la souris
+	elif what == NOTIFICATION_APPLICATION_FOCUS_OUT:
+		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 
 
 # -----------------------------
@@ -459,7 +480,7 @@ func _unhandled_input(event: InputEvent):
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_RIGHT:
 		if not is_at_terminal:
 			mouse_look = event.pressed
-			Input.mouse_mode = Input.MOUSE_MODE_CAPTURED if mouse_look else Input.MOUSE_MODE_VISIBLE
+			Input.mouse_mode = Input.MOUSE_MODE_CAPTURED if mouse_look else Input.MOUSE_MODE_CONFINED
 
 	# Mouvement souris
 	if event is InputEventMouseMotion and mouse_look and not is_at_terminal:
@@ -468,6 +489,32 @@ func _unhandled_input(event: InputEvent):
 		cam_rotation.x = clamp(cam_rotation.x, PITCH_MIN, PITCH_MAX)
 		cam_rotation.y = clamp(cam_rotation.y, YAW_MIN, YAW_MAX)
 		camera.rotation_degrees = Vector3(cam_rotation.x, cam_rotation.y, 0)
+
+	# Déplace le curseur custom dans le SubViewport
+	if event is InputEventMouseMotion and is_at_terminal:
+		vp_cursor_pos += event.relative
+		vp_cursor_pos.x = clamp(vp_cursor_pos.x, 0, VP_SIZE.x)
+		vp_cursor_pos.y = clamp(vp_cursor_pos.y, 0, VP_SIZE.y)
+		# Déplace le curseur visuel
+		if os_cursor:
+			os_cursor.move_to(vp_cursor_pos)
+		# Notifie le window manager du mouvement
+		if os_main:
+			os_main.on_cursor_move(vp_cursor_pos)
+		# Envoie le mouvement au SubViewport pour les hover etc.
+		var vp_event = InputEventMouseMotion.new()
+		vp_event.position = vp_cursor_pos
+		vp_event.global_position = vp_cursor_pos
+		vp_event.relative = event.relative
+		sub_viewport.push_input(vp_event)
+		get_viewport().set_input_as_handled()
+
+	# Clics souris → SubViewport + window manager
+	if event is InputEventMouseButton and is_at_terminal:
+		if os_main:
+			os_main.on_cursor_press(vp_cursor_pos, event.pressed)
+		_send_mouse_to_viewport(event)
+		get_viewport().set_input_as_handled()
 
 
 func _toggle_terminal_view():
@@ -489,16 +536,50 @@ func _toggle_terminal_view():
 		tween.chain().tween_callback(func():
 			sub_viewport.handle_input_locally = true
 			sub_viewport.gui_disable_input = false
-			# Redirige tous les inputs clavier vers le SubViewport
 			sub_viewport.push_input(InputEventKey.new())
+			# Cache la vraie souris, active le curseur custom
+			Input.mouse_mode = Input.MOUSE_MODE_HIDDEN  # curseur custom prend le relais
+			_find_os_cursor()
 		)
 	else:
 		# Désactive l'input du terminal
 		sub_viewport.handle_input_locally = false
 		sub_viewport.gui_disable_input = true
+		# Reconfine la souris dans la fenêtre (sans la cacher)
+		Input.mouse_mode = Input.MOUSE_MODE_CONFINED
+		os_cursor = null
 		# Recule vers la vue libre
 		tween.tween_property(camera, "position", CAM_FREE_POS, 0.6)
 		tween.tween_property(camera, "rotation_degrees", CAM_FREE_ROT, 0.6)
+
+
+# -----------------------------
+# CURSEUR CUSTOM OS
+# -----------------------------
+var os_main = null
+
+func _find_os_cursor():
+	var os_node = sub_viewport.get_node_or_null("OS")
+	if os_node:
+		os_cursor = os_node.get_node_or_null("CursorLayer/Cursor")
+		os_main = os_node
+
+
+func _send_mouse_to_viewport(event: InputEventMouseButton):
+	# Envoie d'abord un MouseMotion pour que Godot sache où est le curseur
+	var move_event = InputEventMouseMotion.new()
+	move_event.position = vp_cursor_pos
+	move_event.global_position = vp_cursor_pos
+	move_event.relative = Vector2.ZERO
+	sub_viewport.push_input(move_event)
+
+	# Puis envoie le clic à la position simulée
+	var vp_event = InputEventMouseButton.new()
+	vp_event.button_index = event.button_index
+	vp_event.pressed = event.pressed
+	vp_event.position = vp_cursor_pos
+	vp_event.global_position = vp_cursor_pos
+	sub_viewport.push_input(vp_event)
 
 
 # -----------------------------

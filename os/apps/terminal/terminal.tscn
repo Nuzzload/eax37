@@ -1,0 +1,72 @@
+[gd_scene format=3 uid="uid://dnvnmyvlrjqdn"]
+
+[ext_resource type="FontFile" uid="uid://cw7cdtqrwdmn8" path="res://os/apps/terminal/font.tres" id="1_7d6gb"]
+[ext_resource type="Script" uid="uid://cuo4trjjad1xb" path="res://os/apps/terminal/terminal_text.gd" id="2_b5qft"]
+[ext_resource type="Script" uid="uid://dgvaesn3nb765" path="res://os/apps/terminal/foldernode.gd" id="3_0u45f"]
+[ext_resource type="Script" uid="uid://cj4x0lvr73g3v" path="res://os/apps/terminal/filenode.gd" id="3_b5qft"]
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_0u45f"]
+
+[node name="Terminal" type="PanelContainer" unique_id=1707527600]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("2_b5qft")
+
+[node name="ColorRect" type="ColorRect" parent="." unique_id=282143364]
+layout_mode = 2
+color = Color(0, 0, 0, 1)
+
+[node name="VBoxContainer" type="VBoxContainer" parent="." unique_id=502079771]
+layout_mode = 2
+
+[node name="TerminalDisplay" type="RichTextLabel" parent="VBoxContainer" unique_id=1613364076]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+mouse_filter = 2
+theme_override_colors/default_color = Color(0, 1, 0, 1)
+theme_override_fonts/normal_font = ExtResource("1_7d6gb")
+bbcode_enabled = true
+shortcut_keys_enabled = false
+
+[node name="HBoxContainer" type="HBoxContainer" parent="VBoxContainer" unique_id=1438911147]
+layout_mode = 2
+size_flags_vertical = 8
+mouse_filter = 2
+theme_override_constants/separation = 0
+
+[node name="TerminalPromptLabel" type="Label" parent="VBoxContainer/HBoxContainer" unique_id=299907353]
+layout_mode = 2
+size_flags_horizontal = 0
+theme_override_colors/font_color = Color(0, 1, 0, 1)
+
+[node name="TerminalInput" type="LineEdit" parent="VBoxContainer/HBoxContainer" unique_id=473551337]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 0
+theme_override_colors/font_color = Color(0, 1, 0, 1)
+theme_override_colors/caret_color = Color(0, 1, 0, 1)
+theme_override_fonts/font = ExtResource("1_7d6gb")
+theme_override_styles/normal = SubResource("StyleBoxEmpty_0u45f")
+placeholder_text = "_"
+context_menu_enabled = false
+emoji_menu_enabled = false
+shortcut_keys_enabled = false
+deselect_on_focus_loss_enabled = false
+drag_and_drop_selection_enabled = false
+
+[node name="filesystem_root" type="Node" parent="." unique_id=2073075414]
+
+[node name="documents" type="Node" parent="filesystem_root" unique_id=1472262731]
+script = ExtResource("3_0u45f")
+
+[node name="file1_txt" type="Node" parent="filesystem_root/documents" unique_id=1152987163]
+script = ExtResource("3_b5qft")
+
+[node name="password_txt" type="Node" parent="filesystem_root" unique_id=472443028]
+script = ExtResource("3_b5qft")
+filename = "password.txt"
+content = "mysuperpassword"
