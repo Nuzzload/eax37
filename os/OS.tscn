@@ -1,6 +1,8 @@
 [gd_scene format=3 uid="uid://bk4d6fhfa17ou"]
 
 [ext_resource type="Script" uid="uid://cx5388hx476ob" path="res://os/os_main.gd" id="1_r31lc"]
+[ext_resource type="Resource" path="res://os/apps/cipher/cipher_app.tres" id="2_cipher"]
+[ext_resource type="Resource" path="res://os/apps/terminal/terminal_app.tres" id="3_terminal"]
 [ext_resource type="Script" uid="uid://c1mkicepqis7e" path="res://os/window_manager.gd" id="3_ifhlw"]
 [ext_resource type="PackedScene" uid="uid://b7xkgeka1gv5i" path="res://os/ui/desktop_icons.tscn" id="4_skjxj"]
 [ext_resource type="PackedScene" uid="uid://bwfkwog1ijjo5" path="res://os/ui/taskbar.tscn" id="4_t6h0g"]
@@ -14,6 +16,7 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_r31lc")
+apps_list = Array[Resource("res://os/app_resource.gd")]([ExtResource("2_cipher"), ExtResource("3_terminal")])
 
 [node name="Wallpaper" type="TextureRect" parent="." unique_id=2094554730]
 layout_mode = 1

@@ -7,15 +7,16 @@ extends Control
 @onready var taskbar: Control = $Taskbar
 @onready var desktop_icons: Control = $DesktopIcons
 
-# Enregistre les apps disponibles
-const APPS = {
-	"cipher":   { "label": "CIPHER",    "scene": "res://os/apps/cipher/cipher.tscn" },
-	"files":    { "label": "FILES",     "scene": "res://os/apps/files/files.tscn" },
-	"browser":  { "label": "NAVIGATOR", "scene": "res://os/apps/browser/browser.tscn" },
-	"terminal": { "label": "TERMINAL",  "scene": "res://os/apps/terminal/terminal.tscn" },
-}
+# Liste des ressources d'applications
+@export var apps_list: Array[AppResource] = []
+
+var apps_dict: Dictionary = {}
 
 func _ready():
+	# Initialise le dictionnaire pour un accès rapide
+	for app in apps_list:
+		apps_dict[app.id] = app
+
 	# Signal depuis les icônes du bureau
 	desktop_icons.app_opened.connect(_on_app_opened)
 	# Signal depuis la taskbar
@@ -28,7 +29,8 @@ func _ready():
 
 
 func _on_app_opened(app_id: String):
-	window_manager.open_app(app_id, APPS[app_id])
+	if apps_dict.has(app_id):
+		window_manager.open_app_resource(apps_dict[app_id])
 
 
 func _on_taskbar_app_focused(app_id: String):
@@ -40,7 +42,8 @@ func _on_app_closed(app_id: String):
 
 
 func _on_window_opened(app_id: String):
-	taskbar.add_app(app_id, APPS[app_id]["label"])
+	if apps_dict.has(app_id):
+		taskbar.add_app(app_id, apps_dict[app_id].label)
 
 
 func _on_window_closed(app_id: String):

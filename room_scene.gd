@@ -24,8 +24,8 @@ const SCREEN_WORLD_SIZE := Vector2(1.18, 0.70)
 const VP_SIZE := Vector2(1152, 648)
 
 # Position caméra libre (vue de la pièce)
-const CAM_FREE_POS := Vector3(0.3, 1.4, 1.8)
-const CAM_FREE_ROT := Vector3(-8, -5, 0)
+const CAM_FREE_POS := Vector3(0.0, 1.5, 1.8)
+const CAM_FREE_ROT := Vector3(-8, 0, 0)
 
 # Position caméra face à l'écran
 const CAM_TERMINAL_POS := Vector3(0.0, 1.35, 0.6)
@@ -36,12 +36,12 @@ var tween: Tween
 
 # Rotation caméra souris
 var mouse_look := false
-var cam_rotation := Vector2(-8, -5)  # pitch, yaw en degrés
+var cam_rotation := Vector2(-8, 0)  # pitch, yaw en degrés
 const MOUSE_SENSITIVITY := 0.15
 const PITCH_MIN := -30.0
 const PITCH_MAX := 20.0
-const YAW_MIN := -40.0
-const YAW_MAX := 10.0
+const YAW_MIN := -30.0
+const YAW_MAX := 30.0
 
 
 func _ready():
@@ -62,7 +62,7 @@ func _notification(what: int):
 	# Quand la fenêtre reprend le focus, reconfine la souris
 	if what == NOTIFICATION_APPLICATION_FOCUS_IN:
 		if is_at_terminal:
-			Input.mouse_mode = Input.MOUSE_MODE_HIDDEN
+			Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 		else:
 			Input.mouse_mode = Input.MOUSE_MODE_CONFINED
 	# Quand on perd le focus, libère la souris
@@ -538,7 +538,7 @@ func _toggle_terminal_view():
 			sub_viewport.gui_disable_input = false
 			sub_viewport.push_input(InputEventKey.new())
 			# Cache la vraie souris, active le curseur custom
-			Input.mouse_mode = Input.MOUSE_MODE_HIDDEN  # curseur custom prend le relais
+			Input.mouse_mode = Input.MOUSE_MODE_CAPTURED  # curseur custom prend le relais
 			_find_os_cursor()
 		)
 	else:

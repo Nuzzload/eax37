@@ -17,24 +17,10 @@ const START_POSITIONS = {
 	"terminal": Vector2(120, 100),
 }
 
-const WINDOW_SIZES = {
-	"cipher":   Vector2(520, 520),
-	"files":    Vector2(680, 480),
-	"browser":  Vector2(740, 520),
-	"terminal": Vector2(620, 440),
-}
 
-const WINDOW_COLORS = {
-	"cipher":   Color("#cc2233"),
-	"files":    Color("#ccaa22"),
-	"browser":  Color("#3366cc"),
-	"terminal": Color("#22cc66"),
-}
-
-
-func open_app(app_id: String, app_data: Dictionary):
-	if open_windows.has(app_id):
-		focus_app(app_id)
+func open_app_resource(app: AppResource):
+	if open_windows.has(app.id):
+		focus_app(app.id)
 		return
 
 	var win = WINDOW_SCENE.instantiate()
@@ -42,22 +28,31 @@ func open_app(app_id: String, app_data: Dictionary):
 
 	top_z += 1
 	win.z_index = top_z
-	win.position = START_POSITIONS.get(app_id, Vector2(100, 80))
-	win.custom_minimum_size = WINDOW_SIZES.get(app_id, Vector2(600, 400))
-	win.size = WINDOW_SIZES.get(app_id, Vector2(600, 400))
+	win.position = START_POSITIONS.get(app.id, Vector2(100, 80))
+	win.custom_minimum_size = app.default_size
+	win.size = app.default_size
 
 	win.setup(
-		app_id,
-		app_data["label"],
-		WINDOW_COLORS.get(app_id, Color("#333344")),
-		load(app_data["scene"])
+		app.id,
+		app.label,
+		app.accent_color,
+		app.scene
 	)
 
-	win.close_requested.connect(func(): close_app(app_id))
-	win.focus_requested.connect(func(): focus_app(app_id))
+	win.close_requested.connect(func(): close_app(app.id))
+	win.focus_requested.connect(func(): focus_app(app.id))
 
-	open_windows[app_id] = win
-	window_opened.emit(app_id)
+	open_windows[app.id] = win
+	window_opened.emit(app.id)
+
+
+func open_app(app_id: String, app_data: Dictionary):
+	# Gardé pour compatibilité temporaire si nécessaire
+	var app = AppResource.new()
+	app.id = app_id
+	app.label = app_data.get("label", "App")
+	app.scene = load(app_data["scene"])
+	open_app_resource(app)
 
 
 func close_app(app_id: String):

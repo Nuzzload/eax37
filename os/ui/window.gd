@@ -48,16 +48,17 @@ func handle_cursor_press(cursor_pos: Vector2, pressed: bool):
 	var local = cursor_pos - position
 	if pressed:
 		focus_requested.emit()
-		var close_rect = Rect2(Vector2(size.x - 28, 6), Vector2(20, 20))
-		if close_rect.has_point(local):
-			close_requested.emit()
-			return
-		var min_rect = Rect2(Vector2(size.x - 52, 6), Vector2(20, 20))
-		if min_rect.has_point(local):
-			_toggle_minimize()
-			return
-		var tb_rect = Rect2(Vector2.ZERO, Vector2(size.x, TITLEBAR_HEIGHT))
-		if tb_rect.has_point(local):
+		
+		# Vérifie si on a cliqué sur un bouton de la barre de titre
+		# On utilise des marges basées sur la taille actuelle pour être plus flexible
+		if local.y >= 0 and local.y <= TITLEBAR_HEIGHT:
+			if local.x >= size.x - 30: # Bouton Close (approximatif)
+				close_requested.emit()
+				return
+			if local.x >= size.x - 55: # Bouton Minimize (approximatif)
+				_toggle_minimize()
+				return
+			
 			on_drag_start(cursor_pos)
 	else:
 		on_drag_end()
