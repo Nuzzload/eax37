@@ -3,10 +3,21 @@
 [ext_resource type="Script" uid="uid://cx5388hx476ob" path="res://os/os_main.gd" id="1_r31lc"]
 [ext_resource type="Resource" path="res://os/apps/cipher/cipher_app.tres" id="2_cipher"]
 [ext_resource type="Resource" path="res://os/apps/terminal/terminal_app.tres" id="3_terminal"]
+[ext_resource type="Resource" path="res://os/apps/files/files_app.tres" id="4_files"]
+[ext_resource type="Resource" path="res://os/apps/settings/settings_app.tres" id="5_settings"]
 [ext_resource type="Script" uid="uid://c1mkicepqis7e" path="res://os/window_manager.gd" id="3_ifhlw"]
 [ext_resource type="PackedScene" uid="uid://b7xkgeka1gv5i" path="res://os/ui/desktop_icons.tscn" id="4_skjxj"]
 [ext_resource type="PackedScene" uid="uid://bwfkwog1ijjo5" path="res://os/ui/taskbar.tscn" id="4_t6h0g"]
 [ext_resource type="Script" uid="uid://2t6c1licu8d" path="res://os/os_cursor.gd" id="5_skjxj"]
+[ext_resource type="Shader" path="res://os/ui/crt_shader.gdshader" id="6_crt"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_crt"]
+shader = ExtResource("6_crt")
+shader_parameter/scanline_count = 320.0
+shader_parameter/scanline_opacity = 0.08
+shader_parameter/noise_opacity = 0.04
+shader_parameter/distortion = 0.01
+shader_parameter/brightness = 1.1
 
 [node name="OS" type="Control" unique_id=1840494939]
 layout_mode = 3
@@ -16,7 +27,7 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_r31lc")
-apps_list = Array[Resource("res://os/app_resource.gd")]([ExtResource("2_cipher"), ExtResource("3_terminal")])
+apps_list = Array[Resource("res://os/app_resource.gd")]([ExtResource("2_cipher"), ExtResource("3_terminal"), ExtResource("4_files"), ExtResource("5_settings")])
 
 [node name="Wallpaper" type="TextureRect" parent="." unique_id=2094554730]
 layout_mode = 1
@@ -54,6 +65,17 @@ offset_right = 0.0
 offset_bottom = 0.0
 grow_horizontal = 2
 grow_vertical = 2
+
+[node name="PostProcess" type="ColorRect" parent="." unique_id=987654321]
+z_index = 1000
+material = SubResource("ShaderMaterial_crt")
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
 
 [node name="CursorLayer" type="CanvasLayer" parent="." unique_id=308589704]
 layer = 128

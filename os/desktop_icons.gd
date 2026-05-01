@@ -13,6 +13,7 @@ const ICONS = [
 	{ "id": "files",    "label": "FILES",      "desc": "Explorateur",         "color": "#ccaa22", "icon": "📁" },
 	{ "id": "browser",  "label": "NAVIGATOR",  "desc": "Navigateur",          "color": "#3366cc", "icon": "🌐" },
 	{ "id": "terminal", "label": "TERMINAL",   "desc": "Terminal",            "color": "#22cc66", "icon": "⬛" },
+	{ "id": "settings", "label": "SETTINGS",   "desc": "Paramètres système",  "color": "#888899", "icon": "⚙️" },
 ]
 
 # app_id -> nombre de notifications
@@ -23,7 +24,6 @@ func _ready():
 	# Le VBoxContainer est déjà dans la scène, on le récupère
 	var vbox = get_child(0)
 	vbox.add_theme_constant_override("separation", 4)
-	# Important : le vbox ne doit pas s'étirer
 	vbox.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	vbox.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 	vbox.mouse_filter = Control.MOUSE_FILTER_STOP
@@ -32,12 +32,17 @@ func _ready():
 		var icon = ICON_SCENE.instantiate()
 		vbox.add_child(icon)
 		icon.setup(icon_data)
-		# Capture la valeur dans une variable locale pour la lambda
 		var id = icon_data["id"]
 		icon.double_clicked.connect(func(): app_opened.emit(id))
 
-	# Notification CIPHER au démarrage
-	set_notification("cipher", 2)
+	# Connection au MissionManager pour les notifications Cipher
+	if MissionManager.has_signal("cipher_notifications_changed"):
+		MissionManager.cipher_notifications_changed.connect(func(count):
+			set_notification("cipher", count)
+		)
+	
+	# Initialise avec l'état actuel
+	set_notification("cipher", MissionManager.cipher_unread_count)
 
 
 func set_notification(app_id: String, count: int):

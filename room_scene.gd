@@ -43,6 +43,9 @@ const PITCH_MAX := 20.0
 const YAW_MIN := -30.0
 const YAW_MAX := 30.0
 
+var desk_lamp_light: OmniLight3D
+var lamp_enabled := true
+
 
 func _ready():
 	_setup_environment()
@@ -435,7 +438,7 @@ func _setup_lights():
 	_add_omni_light(Vector3(0, 1.35, 0.2), Color(0.2, 0.8, 0.3), 0.3, 0.8)
 
 	# Lampe de bureau (spot chaud)
-	_add_omni_light(Vector3(0.88, 0.95, -0.22), Color(0.8, 0.6, 0.3), 1.2, 1.0)
+	desk_lamp_light = _add_omni_light(Vector3(0.88, 0.95, -0.22), Color(0.8, 0.6, 0.3), 1.2, 1.0)
 
 	# Lumière ambiante sol (reflet néon)
 	_add_omni_light(Vector3(0, 0.1, 0), COL_PURPLE, 0.3, 4.0)
@@ -476,6 +479,11 @@ func _unhandled_input(event: InputEvent):
 		sub_viewport.push_input(event)
 		get_viewport().set_input_as_handled()
 
+	# Clic gauche dans la pièce : interaction
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
+		if not is_at_terminal:
+			_interact_with_object()
+
 	# Clic droit : activer/désactiver mouse look
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_RIGHT:
 		if not is_at_terminal:
@@ -515,6 +523,28 @@ func _unhandled_input(event: InputEvent):
 			os_main.on_cursor_press(vp_cursor_pos, event.pressed)
 		_send_mouse_to_viewport(event)
 		get_viewport().set_input_as_handled()
+
+
+func _interact_with_object():
+	var mouse_pos = get_viewport().get_mouse_position()
+	var ray_origin = camera.project_ray_origin(mouse_pos)
+	var ray_dir = camera.project_ray_normal(mouse_pos)
+	
+	# Test simplifié : distance à la lampe
+	var lamp_pos = Vector3(0.88, 0.95, -0.22)
+	# Intersection simplifiée avec une sphère autour de la lampe
+	var L = lamp_pos - ray_origin
+	var tca = L.dot(ray_dir)
+	var d2 = L.dot(L) - tca * tca
+	if d2 < 0.1 * 0.1: # Rayon de détection 10cm
+		_toggle_lamp()
+
+
+func _toggle_lamp():
+	lamp_enabled = !lamp_enabled
+	if desk_lamp_light:
+		var lamp_tween = create_tween()
+		lamp_tween.tween_property(desk_lamp_light, "light_energy", 1.2 if lamp_enabled else 0.0, 0.1)
 
 
 func _toggle_terminal_view():

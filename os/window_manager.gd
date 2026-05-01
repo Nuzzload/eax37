@@ -31,6 +31,7 @@ func open_app_resource(app: AppResource):
 	win.position = START_POSITIONS.get(app.id, Vector2(100, 80))
 	win.custom_minimum_size = app.default_size
 	win.size = app.default_size
+	win.pivot_offset = app.default_size / 2
 
 	win.setup(
 		app.id,
@@ -39,7 +40,7 @@ func open_app_resource(app: AppResource):
 		app.scene
 	)
 
-	win.close_requested.connect(func(): close_app(app.id))
+	win.close_requested.connect(func(): _actually_close_app(app.id))
 	win.focus_requested.connect(func(): focus_app(app.id))
 
 	open_windows[app.id] = win
@@ -56,6 +57,16 @@ func open_app(app_id: String, app_data: Dictionary):
 
 
 func close_app(app_id: String):
+	if not open_windows.has(app_id):
+		return
+	var win = open_windows[app_id]
+	if win.has_method("close_window"):
+		win.close_window()
+	else:
+		_actually_close_app(app_id)
+
+
+func _actually_close_app(app_id: String):
 	if not open_windows.has(app_id):
 		return
 	var win = open_windows[app_id]

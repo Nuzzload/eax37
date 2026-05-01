@@ -13,7 +13,6 @@
 extends PanelContainer
 
 signal app_focused(app_id: String)
-signal app_closed(app_id: String)
 
 @onready var open_apps: HBoxContainer = $MarginContainer/HBoxContainer/OpenApps
 @onready var clock_label: Label = $MarginContainer/HBoxContainer/ClockLabel

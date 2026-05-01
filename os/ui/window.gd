@@ -20,6 +20,17 @@ var is_minimized: bool = false
 const TITLEBAR_HEIGHT = 32
 
 
+func _ready():
+	# Pivot au centre pour les animations de scale
+	pivot_offset = size / 2
+	scale = Vector2.ONE * 0.95
+	modulate.a = 0.0
+	
+	var tween = create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUART)
+	tween.parallel().tween_property(self, "scale", Vector2.ONE, 0.3)
+	tween.parallel().tween_property(self, "modulate:a", 1.0, 0.2)
+
+
 func setup(p_app_id: String, p_title: String, p_color: Color, app_scene: PackedScene):
 	app_id = p_app_id
 	accent_color = p_color
@@ -29,18 +40,36 @@ func setup(p_app_id: String, p_title: String, p_color: Color, app_scene: PackedS
 	if app_scene:
 		var app_instance = app_scene.instantiate()
 		content_container.add_child.call_deferred(app_instance)
-	close_btn.pressed.connect(func(): close_requested.emit())
+	close_btn.pressed.connect(func(): close_window())
 	minimize_btn.pressed.connect(_toggle_minimize)
+
+
+func close_window():
+	var tween = create_tween().set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUART)
+	tween.parallel().tween_property(self, "scale", Vector2.ONE * 0.9, 0.2)
+	tween.parallel().tween_property(self, "modulate:a", 0.0, 0.15)
+	tween.tween_callback(func(): close_requested.emit())
 
 
 func _toggle_minimize():
 	is_minimized = !is_minimized
-	visible = !is_minimized
+	if is_minimized:
+		var tween = create_tween().set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUART)
+		tween.parallel().tween_property(self, "scale", Vector2.ONE * 0.8, 0.2)
+		tween.parallel().tween_property(self, "modulate:a", 0.0, 0.15)
+		tween.tween_callback(func(): visible = false)
+	else:
+		visible = true
+		scale = Vector2.ONE * 0.8
+		modulate.a = 0.0
+		var tween = create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUART)
+		tween.parallel().tween_property(self, "scale", Vector2.ONE, 0.25)
+		tween.parallel().tween_property(self, "modulate:a", 1.0, 0.2)
 
 
 func restore():
-	is_minimized = false
-	visible = true
+	if is_minimized:
+		_toggle_minimize()
 
 
 # Drag géré manuellement depuis room_scene via ces fonctions

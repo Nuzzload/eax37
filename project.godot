@@ -13,7 +13,10 @@ config_version=5
 config/name="eax37"
 run/main_scene="uid://0n7hpdewbeqq"
 config/features=PackedStringArray("4.6", "Forward Plus")
-config/icon="res://icon.svg"
+
+[autoload]
+
+MissionManager="*res://os/mission_manager.gd"
 
 [physics]
 

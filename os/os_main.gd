@@ -6,6 +6,7 @@ extends Control
 @onready var window_manager: Control = $WindowManager
 @onready var taskbar: Control = $Taskbar
 @onready var desktop_icons: Control = $DesktopIcons
+@onready var post_process: ColorRect = $PostProcess
 
 # Liste des ressources d'applications
 @export var apps_list: Array[AppResource] = []
@@ -21,11 +22,33 @@ func _ready():
 	desktop_icons.app_opened.connect(_on_app_opened)
 	# Signal depuis la taskbar
 	taskbar.app_focused.connect(_on_taskbar_app_focused)
-	taskbar.app_closed.connect(_on_app_closed)
 	# Signal depuis le window manager
 	window_manager.window_opened.connect(_on_window_opened)
 	window_manager.window_closed.connect(_on_window_closed)
 	window_manager.window_focused.connect(_on_window_focused)
+	
+	# Connection au MissionManager
+	MissionManager.mission_completed.connect(_on_mission_completed)
+	if MissionManager.has_signal("setting_changed"):
+		MissionManager.setting_changed.connect(_on_setting_changed)
+	
+	# Applique les paramètres initiaux
+	_apply_all_settings()
+
+
+func _on_setting_changed(id: String, value: Variant):
+	if id == "crt_filter":
+		post_process.visible = value
+
+
+func _apply_all_settings():
+	if post_process:
+		post_process.visible = MissionManager.settings.get("crt_filter", true)
+
+
+func _on_mission_completed(_id: String):
+	# Effet de flash / glitch quand la mission est finie
+	corrupted_transition("")
 
 
 func _on_app_opened(app_id: String):

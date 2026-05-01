@@ -19,8 +19,6 @@ signal double_clicked
 
 var app_id: String = ""
 var accent_color: Color
-var _click_time: float = 0.0
-const DOUBLE_CLICK_DELAY = 0.4
 
 
 func setup(data: Dictionary):

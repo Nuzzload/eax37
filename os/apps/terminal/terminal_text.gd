@@ -14,6 +14,7 @@ var host := "eax37"
 
 var history: Array[String] = []
 var history_index := -1
+var is_typing := false
 
 
 func _ready():
@@ -76,7 +77,10 @@ func _ready():
 	input.grab_focus()
 
 	update_prompt_label()
-	print_welcome()
+	_print_welcome_async()
+
+func _print_welcome_async():
+	await print_welcome()
 
 
 # -----------------------------
@@ -97,16 +101,11 @@ func update_prompt_label():
 
 
 func print_welcome():
-	display.append_text("[color=#22cc66]╔══════════════════════════════════╗[/color]
-")
-	display.append_text("[color=#22cc66]║[/color]  [color=#e8e8f0]EAX-37 OS[/color]  [color=#5a5a6e]Terminal v2.3.1[/color]      [color=#22cc66]║[/color]
-")
-	display.append_text("[color=#22cc66]╚══════════════════════════════════╝[/color]
-")
-	display.append_text("[color=#5a5a6e]Type [/color][color=#ccaa22]help[/color][color=#5a5a6e] for available commands.[/color]
-
-")
-	scroll_bottom()
+	await type_text("╔══════════════════════════════════╗", "#22cc66", 0.005)
+	await type_text("║  EAX-37 OS  Terminal v2.3.1      ║", "#e8e8f0", 0.005)
+	await type_text("╚══════════════════════════════════╝", "#22cc66", 0.005)
+	await type_text("Type help for available commands.", "#5a5a6e", 0.005)
+	display.append_text("\n")
 
 
 # -----------------------------
@@ -118,6 +117,7 @@ func _input(event: InputEvent):
 
 
 func _on_input_event(event: InputEvent):
+	if is_typing: return
 	if not (event is InputEventKey and event.pressed):
 		return
 
@@ -143,6 +143,7 @@ func _on_input_event(event: InputEvent):
 
 
 func _on_command(cmd: String):
+	if is_typing: return
 	var command_text := cmd.strip_edges()
 
 	display.append_text("[color=lime]%s@%s[/color][color=white]:[/color][color=deepskyblue]%s[/color][color=white]$ %s[/color]\n" % [user, host, get_terminal_path(), command_text])
@@ -218,6 +219,10 @@ func run_command(cmd: String):
 			cmd_tree(current_dir, "")
 		"grep":
 			cmd_grep(args)
+		"nmap":
+			cmd_nmap(args)
+		"sudo":
+			print_line("user is not in the sudoers file. This incident will be reported.", "red")
 		"ssh":
 			cmd_ssh(args)
 		"clear":
@@ -228,8 +233,19 @@ func run_command(cmd: String):
 			print_line(user)
 		"hostname":
 			print_line(host)
+		"exit":
+			_close_app()
 		_:
 			print_line("bash: %s: command not found" % command, "red")
+
+
+func _close_app():
+	# Remonte jusqu'à la fenêtre pour la fermer
+	var p = get_parent()
+	while p and not p.has_method("close_window"):
+		p = p.get_parent()
+	if p:
+		p.close_window()
 
 
 func cmd_help():
@@ -240,10 +256,38 @@ func cmd_help():
 	print_line("  cat [file]      Display file content", "gray")
 	print_line("  tree            Show directory tree", "gray")
 	print_line("  grep [kw]       Search files for keyword", "gray")
+	print_line("  nmap [target]   Scan network targets", "gray")
 	print_line("  ssh [host]      Connect to remote host", "gray")
 	print_line("  clear           Clear terminal", "gray")
-	print_line("  whoami          Print username", "gray")
-	print_line("  echo [text]     Print text", "gray")
+	print_line("  exit            Close terminal", "gray")
+
+
+func cmd_nmap(args: Array[String]):
+	if args.is_empty():
+		print_line("Usage: nmap <target_ip>", "red")
+		return
+	
+	is_typing = true
+	print_line("Starting Nmap 7.80 ( https://nmap.org ) at 2026-05-01 22:14", "gray")
+	await get_tree().create_timer(0.5).timeout
+	print_line("Scanning %s..." % args[0], "gray")
+	
+	# Simulation de barre de progression
+	for i in range(10):
+		await get_tree().create_timer(0.2).timeout
+		display.append_text("[color=gray]#[/color]")
+		scroll_bottom()
+	display.append_text("\n")
+	
+	await get_tree().create_timer(0.5).timeout
+	print_line("Nmap scan report for %s" % args[0], "white")
+	print_line("Host is up (0.0021s latency).", "gray")
+	print_line("PORT     STATE SERVICE", "yellow")
+	print_line("22/tcp   open  ssh", "lightgreen")
+	print_line("80/tcp   open  http", "lightgreen")
+	print_line("443/tcp  open  https", "lightgreen")
+	print_line("\nNmap done: 1 IP address (1 host up) scanned in 2.54 seconds", "gray")
+	is_typing = false
 
 
 func cmd_ls(_args: Array[String]):
@@ -301,6 +345,10 @@ func cmd_cat(args: Array[String]):
 			var content: String = child.get_content()
 			display.append_text("[color=white]" + content + "[/color]\n")
 			scroll_bottom()
+			
+			# Hook mission
+			if filename == "password.txt":
+				MissionManager.complete_step("m001", 0)
 			return
 
 	print_line("cat: %s: No such file" % filename, "red")
@@ -332,8 +380,11 @@ func cmd_ssh(args: Array[String]):
 		print_line("ssh: missing destination", "red")
 		return
 	var target: String = args[0]
+	is_typing = true
 	print_line("Connecting to %s..." % target, "gray")
+	await get_tree().create_timer(1.5).timeout
 	print_line("ssh: connect to host %s: Connection refused" % target, "red")
+	is_typing = false
 
 
 # -----------------------------
@@ -351,6 +402,18 @@ func cmd_tree(node: Node, prefix: String):
 # -----------------------------
 # PRINT + SCROLL
 # -----------------------------
+func type_text(text: String, color: String = "white", speed: float = 0.02):
+	is_typing = true
+	display.append_text("[color=%s]" % color)
+	for c in text:
+		display.append_text(c)
+		scroll_bottom()
+		if c != " ":
+			await get_tree().create_timer(speed).timeout
+	display.append_text("[/color]\n")
+	is_typing = false
+
+
 func print_line(msg: String, color: String = "white"):
 	display.append_text("[color=%s]%s[/color]\n" % [color, msg])
 	scroll_bottom()
