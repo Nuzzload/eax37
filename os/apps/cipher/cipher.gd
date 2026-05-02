@@ -32,6 +32,7 @@ const AUTO_REPLIES = [
 
 var reply_index := 0
 var is_typing := false
+var is_mission_completed := false
 
 # ── MESSAGES SCRIPTÉS ────────────────────────────────────
 const SCRIPTED_MESSAGES = [
@@ -54,12 +55,18 @@ func _ready():
 	MissionManager.mission_updated.connect(_on_mission_step)
 	MissionManager.cipher_message_added.connect(_on_message_added_remotely)
 	
+	# Vérifie si déjà fini
+	if MissionManager.current_mission == "m001" and MissionManager.current_step >= MissionManager.MISSIONS["m001"]["steps"].size():
+		is_mission_completed = true
+
 	# Marquer tout comme lu quand on ouvre l'app
 	MissionManager.mark_cipher_as_read()
 	
 	await get_tree().process_frame
 	_scroll_to_bottom()
-	_start_scripted_messages()
+	
+	if not is_mission_completed:
+		_start_scripted_messages()
 
 
 func _load_history():
@@ -77,14 +84,13 @@ func _on_message_added_remotely(msg: Dictionary):
 
 
 func _on_mission_step(id: String, step: int):
-	if id == "m001" and step == 1:
-		# Le joueur a trouvé le mot de passe
-		await get_tree().create_timer(2.0).timeout
-		MissionManager.add_cipher_message("UNKNOWN_▓▓▓", "Tu l'as trouvé ? Envoie-le moi.", true)
+	# On ne suit plus les étapes intermédiaires pour m001
+	pass
 
 
 func _on_mission_completed(id: String):
 	if id == "m001":
+		is_mission_completed = true
 		MissionManager.add_cipher_message("UNKNOWN_▓▓▓", "C'est bien. Tu apprends vite.", false)
 		await get_tree().create_timer(1.0).timeout
 		MissionManager.add_cipher_message("UNKNOWN_▓▓▓", "Reste prêt pour la suite.", false)
@@ -102,6 +108,10 @@ func _send_message():
 
 	# Vérification mission
 	if MissionManager.check_cipher_message(text):
+		return
+
+	# Si mission finie, on ne répond plus avec des menaces
+	if is_mission_completed:
 		return
 
 	# Réponse automatique après délai
@@ -321,6 +331,8 @@ func _remove_typing_indicator():
 func _start_scripted_messages():
 	for msg in SCRIPTED_MESSAGES:
 		await get_tree().create_timer(msg["delay"]).timeout
+		if is_mission_completed:
+			return
 		MissionManager.add_cipher_message("UNKNOWN_▓▓▓", msg["text"], true)
 
 

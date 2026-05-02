@@ -42,12 +42,14 @@ func _update_view():
 
 
 func _get_path_string() -> String:
-	var p = "~"
+	if current_node == root_node:
+		return "/"
+		
+	var p = ""
 	for n in path_stack:
 		if n != root_node:
 			p += "/" + n.name
-	if current_node != root_node:
-		p += "/" + current_node.name
+	p += "/" + current_node.name
 	return p
 
 
@@ -98,6 +100,7 @@ func _on_back_pressed():
 
 func _open_file(node: Node):
 	if node.has_method("get_content"):
+		var filename = node.get("filename") if node.get("filename") != null else node.name
 		# On pourrait ouvrir un éditeur de texte, mais pour l'instant on simule
-		print("Opening file: ", node.name)
+		print("Opening file: ", filename)
 		# TODO: Implémenter un TextEditor simplifié

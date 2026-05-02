@@ -60,13 +60,44 @@ drag_and_drop_selection_enabled = false
 
 [node name="filesystem_root" type="Node" parent="." unique_id=2073075414]
 
+[node name="bin" type="Node" parent="filesystem_root"]
+script = ExtResource("3_0u45f")
+
+[node name="nmap" type="Node" parent="filesystem_root/bin"]
+script = ExtResource("3_b5qft")
+filename = "nmap"
+content = "Binary executable"
+
+[node name="ssh" type="Node" parent="filesystem_root/bin"]
+script = ExtResource("3_b5qft")
+filename = "ssh"
+content = "Binary executable"
+
 [node name="documents" type="Node" parent="filesystem_root" unique_id=1472262731]
 script = ExtResource("3_0u45f")
 
-[node name="file1_txt" type="Node" parent="filesystem_root/documents" unique_id=1152987163]
-script = ExtResource("3_b5qft")
-
-[node name="password_txt" type="Node" parent="filesystem_root" unique_id=472443028]
+[node name="password_txt" type="Node" parent="filesystem_root/documents" unique_id=472443028]
 script = ExtResource("3_b5qft")
 filename = "password.txt"
 content = "mysuperpassword"
+
+[node name="note_txt" type="Node" parent="filesystem_root/documents"]
+script = ExtResource("3_b5qft")
+filename = "note.txt"
+content = "Don't forget to pay the rent."
+
+[node name="logs" type="Node" parent="filesystem_root"]
+script = ExtResource("3_0u45f")
+
+[node name="auth_log" type="Node" parent="filesystem_root/logs"]
+script = ExtResource("3_b5qft")
+filename = "auth.log"
+content = "May 01 22:10:05 login success for user hacker"
+
+[node name="system" type="Node" parent="filesystem_root"]
+script = ExtResource("3_0u45f")
+
+[node name="config_sys" type="Node" parent="filesystem_root/system"]
+script = ExtResource("3_b5qft")
+filename = "config.sys"
+content = "OS_VERSION=2.3.1\nKERNEL=EAX_CORE"

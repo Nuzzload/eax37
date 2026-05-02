@@ -84,7 +84,7 @@ func mark_cipher_as_read():
 
 # Appelée par Cipher quand l'utilisateur envoie un message
 func check_cipher_message(text: String):
-	if current_mission == "m001" and current_step == 1:
+	if current_mission == "m001" and current_step == 0:
 		if text.to_lower() == MISSIONS["m001"]["target_password"]:
 			complete_mission("m001")
 			return true
@@ -96,7 +96,6 @@ const MISSIONS = {
 	"m001": {
 		"title": "First Contact",
 		"steps": [
-			"Trouver le mot de passe dans /documents/password.txt",
 			"Envoyer le mot de passe au hacker via Cipher"
 		],
 		"target_password": "mysuperpassword"

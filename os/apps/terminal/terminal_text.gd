@@ -87,9 +87,11 @@ func _print_welcome_async():
 # PROMPT / PATH
 # -----------------------------
 func get_terminal_path() -> String:
-	if path_stack.is_empty():
-		return "~"
-	var p := "~"
+	if current_dir == filesystem_root:
+		return "/"
+	
+	var p := ""
+	# On commence après filesystem_root (index 0)
 	for i in range(1, path_stack.size()):
 		p += "/" + path_stack[i].name
 	p += "/" + current_dir.name
@@ -345,10 +347,6 @@ func cmd_cat(args: Array[String]):
 			var content: String = child.get_content()
 			display.append_text("[color=white]" + content + "[/color]\n")
 			scroll_bottom()
-			
-			# Hook mission
-			if filename == "password.txt":
-				MissionManager.complete_step("m001", 0)
 			return
 
 	print_line("cat: %s: No such file" % filename, "red")
