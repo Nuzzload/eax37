@@ -146,8 +146,8 @@ func _append_boot_line(data: Dictionary) -> void:
 		_boot_text.append_text("\n")
 	else:
 		var elapsed_ms := Time.get_ticks_msec() - _boot_start_ms
-		var secs := elapsed_ms / 1000
-		var ms   := (elapsed_ms % 1000) / 10
+		var secs: int = elapsed_ms / 1000
+		var ms: int   = (elapsed_ms % 1000) / 10
 		var ts   := "[color=#1c3a1c][%02d:%02d][/color] " % [secs, ms]
 		_boot_text.append_text("%s[color=%s]%s[/color]\n" % [ts, hex, text])
 
@@ -588,10 +588,10 @@ func _build_bottom_bar(parent: Control) -> void:
 
 func _update_uptime() -> void:
 	if _uptime_label == null: return
-	var total := int(Time.get_ticks_msec() / 1000) + FAKE_UPTIME_BASE
-	var h := total / 3600
-	var m := (total % 3600) / 60
-	var s := total % 60
+	var total: int = Time.get_ticks_msec() / 1000 + FAKE_UPTIME_BASE
+	var h: int = total / 3600
+	var m: int = (total % 3600) / 60
+	var s: int = total % 60
 	_uptime_label.text = "UPTIME %02d:%02d:%02d" % [h, m, s]
 
 

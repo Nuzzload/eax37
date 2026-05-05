@@ -57,6 +57,7 @@ func _ready():
 	_build_wall_decorations()
 	_setup_lights()
 	_setup_camera()
+	_build_crt_overlay()
 	# Confine la souris dans la fenêtre dès le départ
 	Input.mouse_mode = Input.MOUSE_MODE_CONFINED
 
@@ -610,6 +611,76 @@ func _send_mouse_to_viewport(event: InputEventMouseButton):
 	vp_event.position = vp_cursor_pos
 	vp_event.global_position = vp_cursor_pos
 	sub_viewport.push_input(vp_event)
+
+
+# -----------------------------
+# OVERLAY CRT
+# -----------------------------
+func _build_crt_overlay() -> void:
+	if not sub_viewport: return
+
+	var layer := CanvasLayer.new()
+	layer.layer = 100  # au-dessus de tout l'OS
+	sub_viewport.add_child(layer)
+
+	var vp := Vector2(float(sub_viewport.size.x), float(sub_viewport.size.y))
+
+	# Scanlines statiques : lignes horizontales très discrètes
+	var scanline_root := Control.new()
+	scanline_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	layer.add_child(scanline_root)
+
+	var spacing := 5.5
+	var idx := 0
+	while idx * spacing < vp.y + spacing:
+		var line := ColorRect.new()
+		line.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		line.size = Vector2(vp.x, 1.0)
+		line.position = Vector2(0.0, idx * spacing)
+		line.color = Color(0.0, 0.0, 0.0, 0.055)
+		scanline_root.add_child(line)
+		idx += 1
+
+	# Bande de balayage phosphore CRT
+	# Plusieurs rects empilés pour simuler un dégradé doux (cœur lumineux + halos)
+	var band_group := Control.new()
+	band_group.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	layer.add_child(band_group)
+
+	var band_specs := [
+		[40.0, Color(0.55, 1.0, 0.55, 0.004)],  # halo supérieur
+		[24.0, Color(0.65, 1.0, 0.65, 0.011)],  # transition
+		[14.0, Color(0.80, 1.0, 0.80, 0.022)],  # cœur (bande la plus lumineuse)
+		[24.0, Color(0.65, 1.0, 0.65, 0.011)],  # transition
+		[40.0, Color(0.55, 1.0, 0.55, 0.004)],  # halo inférieur
+	]
+
+	var y := 0.0
+	for spec in band_specs:
+		var h: float = spec[0]
+		var col: Color = spec[1]
+		var rect := ColorRect.new()
+		rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		rect.size = Vector2(vp.x, h)
+		rect.position = Vector2(0.0, y)
+		rect.color = col
+		band_group.add_child(rect)
+		y += h
+
+	var band_h := y  # hauteur totale du groupe (~142 px)
+	band_group.position.y = -band_h
+
+	_run_phosphor_sweep(band_group, vp.y, band_h)
+
+
+func _run_phosphor_sweep(band_group: Control, vp_h: float, band_h: float) -> void:
+	while is_inside_tree():
+		band_group.position.y = -band_h
+		var tw := create_tween()
+		tw.tween_property(band_group, "position:y", vp_h + 10.0, 5.5) \
+			.set_trans(Tween.TRANS_LINEAR)
+		await tw.finished
+		await get_tree().create_timer(randf_range(0.0, 0.2)).timeout
 
 
 # -----------------------------
