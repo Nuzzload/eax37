@@ -34,14 +34,12 @@ func _build() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_STOP
 
-	# Fond semi-transparent
 	var overlay := ColorRect.new()
 	overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	overlay.color = Color(0, 0, 0, 0.6)
+	overlay.color = Color(0, 0, 0, 0.65)
 	overlay.mouse_filter = Control.MOUSE_FILTER_PASS
 	add_child(overlay)
 
-	# Carte centrale
 	var center := CenterContainer.new()
 	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(center)
@@ -52,49 +50,80 @@ func _build() -> void:
 
 func _make_card() -> PanelContainer:
 	var card := PanelContainer.new()
-	card.custom_minimum_size = Vector2(460, 0)
+	card.custom_minimum_size = Vector2(480, 0)
+
 	var card_style := StyleBoxFlat.new()
 	card_style.bg_color = C_PANEL
 	card_style.border_color = C_ACCENT
 	card_style.set_border_width_all(1)
 	card_style.set_content_margin_all(32)
-	card_style.corner_radius_top_left     = 6
-	card_style.corner_radius_top_right    = 6
-	card_style.corner_radius_bottom_left  = 6
-	card_style.corner_radius_bottom_right = 6
+	card_style.corner_radius_top_left     = 4
+	card_style.corner_radius_top_right    = 4
+	card_style.corner_radius_bottom_left  = 4
+	card_style.corner_radius_bottom_right = 4
 	card_style.shadow_color = Color(0, 0, 0, 0.5)
-	card_style.shadow_size  = 12
-	card_style.shadow_offset = Vector2(0, 4)
+	card_style.shadow_size  = 16
+	card_style.shadow_offset = Vector2(0, 6)
 	card.add_theme_stylebox_override("panel", card_style)
 
 	var vbox := VBoxContainer.new()
-	vbox.add_theme_constant_override("separation", 20)
+	vbox.add_theme_constant_override("separation", 14)
 	card.add_child(vbox)
 
-	# Titre
+	# ── Titre ──
 	var title := Label.new()
 	title.text = "PARAMÈTRES"
-	title.add_theme_font_size_override("font_size", 18)
+	title.add_theme_font_size_override("font_size", 16)
 	title.add_theme_color_override("font_color", C_BRIGHT)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	vbox.add_child(title)
 
 	vbox.add_child(_make_separator())
 
-	# Lignes de paramètres
+	# ── AUDIO ──
+	vbox.add_child(_make_section_header("AUDIO"))
 	vbox.add_child(_make_slider_row("MUSIQUE",   0, 100, 80,  func(v): _on_music_changed(v)))
 	vbox.add_child(_make_slider_row("EFFETS",    0, 100, 100, func(v): _on_sfx_changed(v)))
-	vbox.add_child(_make_separator())
-	vbox.add_child(_make_display_row())
-	vbox.add_child(_make_lang_row())
+
 	vbox.add_child(_make_separator())
 
-	# Bouton retour
+	# ── AFFICHAGE ──
+	vbox.add_child(_make_section_header("AFFICHAGE"))
+	vbox.add_child(_make_display_row())
+
+	vbox.add_child(_make_separator())
+
+	# ── SYSTÈME ──
+	vbox.add_child(_make_section_header("SYSTÈME"))
+	vbox.add_child(_make_lang_row())
+
+	vbox.add_child(_make_separator())
+
 	var back_btn := _make_button("← RETOUR")
 	back_btn.pressed.connect(_on_back_pressed)
 	vbox.add_child(back_btn)
 
 	return card
+
+
+func _make_section_header(text: String) -> HBoxContainer:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 8)
+
+	var accent := ColorRect.new()
+	accent.color = C_ACCENT
+	accent.custom_minimum_size = Vector2(3, 14)
+	accent.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row.add_child(accent)
+
+	var lbl := Label.new()
+	lbl.text = text
+	lbl.add_theme_font_size_override("font_size", 10)
+	lbl.add_theme_color_override("font_color", C_ACCENT)
+	lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	row.add_child(lbl)
+
+	return row
 
 
 func _make_separator() -> HSeparator:
@@ -138,10 +167,8 @@ func _make_slider_row(label_text: String, min_v: float, max_v: float, default_v:
 	val_lbl.vertical_alignment   = VERTICAL_ALIGNMENT_CENTER
 	row.add_child(val_lbl)
 
-	# Mettre à jour le label quand la valeur change
 	slider.value_changed.connect(func(v: float) -> void: val_lbl.text = str(int(v)))
 
-	# Garder une référence selon le label
 	if label_text == "MUSIQUE":
 		_music_slider = slider
 	else:
@@ -155,7 +182,7 @@ func _make_display_row() -> HBoxContainer:
 	row.add_theme_constant_override("separation", 12)
 
 	var lbl := Label.new()
-	lbl.text = "AFFICHAGE"
+	lbl.text = "MODE"
 	lbl.custom_minimum_size.x = 80
 	lbl.add_theme_color_override("font_color", C_TEXT)
 	lbl.add_theme_font_size_override("font_size", 11)
@@ -208,12 +235,15 @@ func _make_button(label_text: String) -> Button:
 	var s_normal := StyleBoxFlat.new()
 	s_normal.bg_color = C_ACCENT_DIM
 	s_normal.border_color = C_ACCENT
-	s_normal.set_border_width_all(1)
+	s_normal.border_width_left   = 3
+	s_normal.border_width_top    = 0
+	s_normal.border_width_right  = 0
+	s_normal.border_width_bottom = 0
 	s_normal.set_content_margin_all(8)
-	s_normal.corner_radius_top_left     = 4
-	s_normal.corner_radius_top_right    = 4
-	s_normal.corner_radius_bottom_left  = 4
-	s_normal.corner_radius_bottom_right = 4
+	s_normal.corner_radius_top_left     = 2
+	s_normal.corner_radius_top_right    = 2
+	s_normal.corner_radius_bottom_left  = 2
+	s_normal.corner_radius_bottom_right = 2
 
 	var s_hover := s_normal.duplicate() as StyleBoxFlat
 	s_hover.bg_color = C_ACCENT
@@ -254,11 +284,11 @@ func _apply_slider_style(slider: HSlider) -> void:
 	var fill := slider_bg.duplicate() as StyleBoxFlat
 	fill.bg_color = C_ACCENT_DIM
 
-	slider.add_theme_stylebox_override("grabber_area",       fill)
+	slider.add_theme_stylebox_override("grabber_area",           fill)
 	slider.add_theme_stylebox_override("grabber_area_highlight", fill)
-	slider.add_theme_stylebox_override("slider",             slider_bg)
-	slider.add_theme_stylebox_override("grabber",            grabber)
-	slider.add_theme_stylebox_override("grabber_highlight",  grabber_hl)
+	slider.add_theme_stylebox_override("slider",                 slider_bg)
+	slider.add_theme_stylebox_override("grabber",                grabber)
+	slider.add_theme_stylebox_override("grabber_highlight",      grabber_hl)
 	slider.custom_minimum_size.y = 20
 
 
@@ -271,10 +301,10 @@ func _apply_option_style(opt: OptionButton) -> void:
 	s.set_content_margin(SIDE_RIGHT,  10)
 	s.set_content_margin(SIDE_TOP,     6)
 	s.set_content_margin(SIDE_BOTTOM,  6)
-	s.corner_radius_top_left     = 4
-	s.corner_radius_top_right    = 4
-	s.corner_radius_bottom_left  = 4
-	s.corner_radius_bottom_right = 4
+	s.corner_radius_top_left     = 2
+	s.corner_radius_top_right    = 2
+	s.corner_radius_bottom_left  = 2
+	s.corner_radius_bottom_right = 2
 
 	var sh := s.duplicate() as StyleBoxFlat
 	sh.border_color = C_ACCENT
