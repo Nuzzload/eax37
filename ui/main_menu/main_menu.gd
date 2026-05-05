@@ -1,7 +1,7 @@
 # main_menu.gd
 # Menu principal d'EAX37.
 # Gère la navigation entre le panneau principal et le panneau de paramètres,
-# ainsi que les transitions (fade).
+# ainsi que les transitions (fade) et la séquence de boot.
 extends Control
 
 # ── COULEURS ──────────────────────────────────────
@@ -15,36 +15,144 @@ const C_TEXT_DIM   = Color("#484866")
 const C_BRIGHT     = Color("#e0e0f0")
 const C_GREEN      = Color("#22c55e")
 const C_WARN       = Color("#ef4444")
+const C_AMBER      = Color("#ccaa22")
 
-# Chemin de la scène de jeu à charger (à adapter)
 const GAME_SCENE := "res://room.tscn"
 
+# ── BOOT ──────────────────────────────────────────
+const BOOT_LINES = [
+	{ "text": "EAX-37 BIOS v2.3.1  —  Copyright (C) EAX Systems", "color": "amber", "delay": 0.0 },
+	{ "text": "CPU: EAX-X86 @ 3.2GHz  |  RAM: 16384MB  |  STORAGE: 512GB SSD", "color": "dim", "delay": 0.3 },
+	{ "text": "", "delay": 0.1 },
+	{ "text": "Running POST...", "color": "dim", "delay": 0.2 },
+	{ "text": "  Memory check.................... [OK]", "color": "green", "delay": 0.4 },
+	{ "text": "  Storage check................... [OK]", "color": "green", "delay": 0.3 },
+	{ "text": "  Network interface............... [OK]", "color": "green", "delay": 0.3 },
+	{ "text": "  Security module................. [OK]", "color": "green", "delay": 0.4 },
+	{ "text": "", "delay": 0.1 },
+	{ "text": "Booting EAX-37 OS...", "color": "dim", "delay": 0.3 },
+	{ "text": "  Loading kernel.................. [OK]", "color": "green", "delay": 0.5 },
+	{ "text": "  Mounting filesystem............. [OK]", "color": "green", "delay": 0.3 },
+	{ "text": "  Starting services...............", "color": "dim", "delay": 0.4 },
+	{ "text": "    cipher.service................ [ACTIVE]", "color": "red", "delay": 0.3 },
+	{ "text": "    monitor.service............... [ACTIVE]", "color": "red", "delay": 0.2 },
+	{ "text": "    keylog.service................ [ACTIVE]", "color": "red", "delay": 0.3 },
+	{ "text": "", "delay": 0.2 },
+	{ "text": "WARNING: Unauthorized access detected on /home/user", "color": "red", "delay": 0.4 },
+	{ "text": "WARNING: Remote connection established — 194.███.██.██", "color": "red", "delay": 0.2 },
+	{ "text": "", "delay": 0.3 },
+	{ "text": "Starting desktop environment...", "color": "dim", "delay": 0.6 },
+]
+
 # ── NŒUDS ─────────────────────────────────────────
-var _main_panel:    Control
+var _main_panel:     Control
 var _settings_panel: SettingsPanel
-var _continue_btn:  Button
+var _continue_btn:   Button
+var _boot_panel:     Control
+var _boot_text:      RichTextLabel
+var _skip_label:     Label
+var _boot_finished   := false
+var _skip_requested  := false
 
 
 func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_build_background()
+	_build_boot_panel()
 	_build_main_panel()
 	_build_settings_panel()
+	_start_boot_sequence()
+
+
+# ═══════════════════════════════════════════════════
+# BOOT
+# ═══════════════════════════════════════════════════
+func _build_boot_panel() -> void:
+	_boot_panel = Control.new()
+	_boot_panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	add_child(_boot_panel)
+
+	# Texte de boot dans un margin container
+	var margin := MarginContainer.new()
+	margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	margin.add_theme_constant_override("margin_left", 40)
+	margin.add_theme_constant_override("margin_right", 40)
+	margin.add_theme_constant_override("margin_top", 40)
+	margin.add_theme_constant_override("margin_bottom", 40)
+	_boot_panel.add_child(margin)
+
+	_boot_text = RichTextLabel.new()
+	_boot_text.bbcode_enabled = true
+	_boot_text.scroll_active = true
+	_boot_text.scroll_following = true
+	_boot_text.add_theme_font_size_override("normal_font_size", 13)
+	_boot_text.add_theme_color_override("default_color", C_TEXT)
+	margin.add_child(_boot_text)
+
+	# Label "Entrée pour passer"
+	_skip_label = Label.new()
+	_skip_label.text = "[ ENTRÉE pour passer ]"
+	_skip_label.add_theme_font_size_override("font_size", 11)
+	_skip_label.add_theme_color_override("font_color", C_TEXT_DIM)
+	_skip_label.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
+	_skip_label.position = Vector2(-150, -40)
+	_boot_panel.add_child(_skip_label)
+
+
+func _start_boot_sequence() -> void:
+	_skip_label.visible = true
+	for line_data in BOOT_LINES:
+		if _skip_requested:
+			break
+		await get_tree().create_timer(line_data["delay"]).timeout
+		if _skip_requested:
+			break
+		_append_boot_line(line_data)
+	_finish_boot()
+
+
+func _append_boot_line(data: Dictionary) -> void:
+	var text: String = data.get("text", "")
+	var color: String = data.get("color", "text")
+	var hex: String
+	match color:
+		"green": hex = "#22c55e"
+		"red":   hex = "#ef4444"
+		"amber": hex = "#ccaa22"
+		"dim":   hex = "#484866"
+		_:       hex = "#b0b0cc"
+	if text == "":
+		_boot_text.append_text("\n")
+	else:
+		_boot_text.append_text("[color=%s]%s[/color]\n" % [hex, text])
+
+
+func _finish_boot() -> void:
+	_boot_finished = true
+	_skip_label.visible = false
+	var tw := create_tween()
+	tw.tween_property(_boot_text, "modulate:a", 0.0, 0.6)
+	await tw.finished
+	_boot_panel.visible = false
 	_fade_in(_main_panel)
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if event is InputEventKey and event.pressed and event.keycode == KEY_ENTER:
+		if not _boot_finished:
+			_skip_requested = true
 
 
 # ═══════════════════════════════════════════════════
 # CONSTRUCTION — FOND
 # ═══════════════════════════════════════════════════
 func _build_background() -> void:
-	# Fond uni
 	var bg := ColorRect.new()
 	bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	bg.color = C_BG
 	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(bg)
 
-	# Grille subtile (lignes horizontales)
 	for i in range(0, 40):
 		var line := ColorRect.new()
 		line.set_anchors_preset(Control.PRESET_TOP_WIDE)
@@ -55,7 +163,6 @@ func _build_background() -> void:
 		line.position.y = i * 30.0
 		bg.add_child(line)
 
-	# Lueur centrale violette
 	var glow := ColorRect.new()
 	glow.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	glow.color = Color(C_ACCENT.r, C_ACCENT.g, C_ACCENT.b, 0.04)
@@ -69,7 +176,8 @@ func _build_background() -> void:
 func _build_main_panel() -> void:
 	_main_panel = Control.new()
 	_main_panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	_main_panel.modulate.a = 0.0  # caché au départ, fade-in dans _ready
+	_main_panel.modulate.a = 0.0
+	_main_panel.visible = false
 	add_child(_main_panel)
 
 	var center := CenterContainer.new()
@@ -81,15 +189,9 @@ func _build_main_panel() -> void:
 	vbox.custom_minimum_size.x = 320
 	center.add_child(vbox)
 
-	# ── En-tête ──
 	vbox.add_child(_make_title_block())
 	vbox.add_child(_make_spacer(24))
-
-	# ── Carte des boutons ──
-	var card := _make_button_card()
-	vbox.add_child(card)
-
-	# ── Pied de page ──
+	vbox.add_child(_make_button_card())
 	vbox.add_child(_make_spacer(16))
 	vbox.add_child(_make_footer())
 
@@ -112,7 +214,13 @@ func _make_title_block() -> VBoxContainer:
 	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	block.add_child(sub)
 
-	# Indicateur de statut
+	var tagline := Label.new()
+	tagline.text = "Obéir semble être la clé de votre liberté."
+	tagline.add_theme_font_size_override("font_size", 10)
+	tagline.add_theme_color_override("font_color", C_TEXT_DIM)
+	tagline.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	block.add_child(tagline)
+
 	var status_row := HBoxContainer.new()
 	status_row.add_theme_constant_override("separation", 6)
 	status_row.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -159,26 +267,22 @@ func _make_button_card() -> PanelContainer:
 	vbox.add_theme_constant_override("separation", 8)
 	card.add_child(vbox)
 
-	# Bouton Continuer (désactivé)
 	_continue_btn = _make_menu_btn("CONTINUER", C_TEXT_DIM, C_BORDER)
 	_continue_btn.disabled = true
 	vbox.add_child(_continue_btn)
 
 	vbox.add_child(_make_thin_sep())
 
-	# Bouton Nouvelle partie
 	var new_btn := _make_menu_btn("NOUVELLE PARTIE", C_GREEN, Color("#14532d"))
 	new_btn.pressed.connect(_on_new_game_pressed)
 	vbox.add_child(new_btn)
 
-	# Bouton Paramètres
 	var settings_btn := _make_menu_btn("PARAMÈTRES", C_ACCENT, C_ACCENT_DIM)
 	settings_btn.pressed.connect(_on_settings_pressed)
 	vbox.add_child(settings_btn)
 
 	vbox.add_child(_make_thin_sep())
 
-	# Bouton Quitter
 	var quit_btn := _make_menu_btn("QUITTER", C_WARN, Color("#4c0519"))
 	quit_btn.pressed.connect(_on_quit_pressed)
 	vbox.add_child(quit_btn)
