@@ -99,8 +99,8 @@ func _setup_environment():
 
 	# Lumière ambiante quasiment nulle → contraste extrême
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	env.ambient_light_color  = Color(0.04, 0.04, 0.05)
-	env.ambient_light_energy = 0.4
+	env.ambient_light_color  = Color(0.08, 0.07, 0.06)
+	env.ambient_light_energy = 1.2
 
 	# ── Fog volumétrique ──────────────────────────────────────────────────────
 	env.volumetric_fog_enabled      = true
@@ -133,8 +133,8 @@ func _setup_environment():
 	# ── SSAO agressif → coins très sombres ────────────────────────────────────
 	env.ssao_enabled   = true
 	env.ssao_radius    = 1.8
-	env.ssao_intensity = 3.5
-	env.ssao_power     = 1.5
+	env.ssao_intensity = 2.5
+	env.ssao_power     = 1.2
 
 	# ── SSIL ─────────────────────────────────────────────────────────────────
 	env.ssil_enabled   = true
@@ -143,9 +143,9 @@ func _setup_environment():
 
 	# ── Correction colorimétrique ─────────────────────────────────────────────
 	env.adjustment_enabled    = true
-	env.adjustment_brightness = 0.80     # plus sombre
-	env.adjustment_contrast   = 1.35     # contraste dur
-	env.adjustment_saturation = 0.70     # très désaturé → look anxiogène
+	env.adjustment_brightness = 0.95     # légèrement relevé
+	env.adjustment_contrast   = 1.20     # contraste dur mais pas aveuglant
+	env.adjustment_saturation = 0.72     # désaturé → look anxiogène
 
 	var we := WorldEnvironment.new()
 	we.environment = env
@@ -636,13 +636,13 @@ func _setup_lights():
 	# Entre les barreaux, depuis l'extérieur bas
 	street_lamp_light = _add_omni_light(
 		Vector3(WIN_X + 0.3, WIN_Y - WIN_H * 0.5 - 0.3, WIN_Z - 0.6),
-		COL_STREET_LAMP, 2.8, 5.5
+		COL_STREET_LAMP, 3.8, 6.5
 	)
 
 	# ── Lumière froide nuit (depuis la fenêtre, haut) ─────────────────────────
 	window_cold_light = _add_omni_light(
 		Vector3(WIN_X, WIN_Y + 0.3, WIN_Z + 0.2),
-		COL_NIGHT_COLD, 0.55, 3.5
+		COL_NIGHT_COLD, 0.9, 5.0
 	)
 
 	# ── Lampe de bureau (chaud, principale) ───────────────────────────────────
