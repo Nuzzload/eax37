@@ -83,7 +83,7 @@ func _on_message_added_remotely(msg: Dictionary):
 	_scroll_to_bottom()
 
 
-func _on_mission_step(id: String, step: int):
+func _on_mission_step(_id: String, _step: int):
 	# On ne suit plus les étapes intermédiaires pour m001
 	pass
 

@@ -79,10 +79,9 @@ func focus_app(app_id: String):
 	if not open_windows.has(app_id):
 		return
 	var win = open_windows[app_id]
-	# Si minimisée → restaure toujours
-	if not win.visible:
-		win.visible = true
-		win.is_minimized = false
+	# Si minimisée → restaure avec animation
+	if win.is_minimized:
+		win.restore()
 	top_z += 1
 	win.z_index = top_z
 	window_focused.emit(app_id)

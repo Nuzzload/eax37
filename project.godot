@@ -11,7 +11,7 @@ config_version=5
 [application]
 
 config/name="eax37"
-run/main_scene="uid://0n7hpdewbeqq"
+run/main_scene="res://ui/main_menu/MainMenu.tscn"
 config/features=PackedStringArray("4.6", "Forward Plus")
 
 [autoload]
