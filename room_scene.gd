@@ -471,6 +471,7 @@ func _build_keyboard():
 	_make_box(Vector3(0.42, 0.801, 0.048), Vector3(0.006, 0.004, 0.006), Color(0.0, 0.8, 0.1), true)
 
 
+<<<<<<< HEAD
 # ─── RADIO ───────────────────────────────────────────────────────────────────
 func _build_radio():
 	# Corps
@@ -481,6 +482,110 @@ func _build_radio():
 	# Face avant
 	_make_box(Vector3(0.75, 0.815, -0.305), Vector3(0.26, 0.10, 0.006), Color(0.30, 0.25, 0.18))
 	# Grille speaker
+=======
+# -----------------------------
+# DÉCORATIONS
+# -----------------------------
+func _build_decorations():
+	# Tasse de café (cylindre)
+	_make_cylinder(
+		Vector3(-0.85, 0.875, 0.1),
+		0.055, 0.1,
+		Color(0.12, 0.06, 0.06)
+	)
+	# Café dans la tasse
+	_make_cylinder(
+		Vector3(-0.85, 0.925, 0.1),
+		0.048, 0.01,
+		Color(0.15, 0.08, 0.04)
+	)
+
+	# Lampe de bureau
+	# Base lampe
+	_make_cylinder(
+		Vector3(0.9, 0.782, -0.1),
+		0.07, 0.015,
+		COL_METAL
+	)
+	# Bras lampe bas
+	_make_box(
+		Vector3(0.9, 0.88, -0.1),
+		Vector3(0.025, 0.22, 0.025),
+		COL_METAL
+	)
+	# Bras lampe angle
+	_make_box(
+		Vector3(0.88, 0.99, -0.15),
+		Vector3(0.025, 0.025, 0.14),
+		COL_METAL
+	)
+	# Abat-jour
+	_make_box(
+		Vector3(0.88, 0.98, -0.22),
+		Vector3(0.12, 0.06, 0.1),
+		COL_METAL
+	)
+
+	# Post-it sur le mur
+	_make_box(
+		Vector3(-0.4, 1.6, -2.44),
+		Vector3(0.18, 0.18, 0.01),
+		Color(0.9, 0.85, 0.1)
+	)
+	_make_box(
+		Vector3(0.2, 1.45, -2.44),
+		Vector3(0.14, 0.14, 0.01),
+		Color(0.1, 0.8, 0.6)
+	)
+
+	# Post-it ALT+E sur le bureau
+	_make_box(
+		Vector3(-0.6, 0.785, 0.18),
+		Vector3(0.16, 0.001, 0.12),
+		Color(0.95, 0.9, 0.2)
+	)
+	# Label3D sur le post-it
+	var postit_label := Label3D.new()
+	postit_label.text = "ALT+E"
+	postit_label.position = Vector3(-0.6, 0.787, 0.17)
+	postit_label.rotation_degrees = Vector3(-90, 0, 0)
+	postit_label.pixel_size = 0.001
+	postit_label.font_size = 18
+	postit_label.modulate = Color(0.2, 0.15, 0.0)
+	postit_label.billboard = BaseMaterial3D.BILLBOARD_DISABLED
+	postit_label.no_depth_test = false
+	add_child(postit_label)
+	var postit_sub := Label3D.new()
+	postit_sub.text = "utiliser
+l'ordi"
+	postit_sub.position = Vector3(-0.6, 0.787, 0.21)
+	postit_sub.rotation_degrees = Vector3(-90, 0, 0)
+	postit_sub.pixel_size = 0.001
+	postit_sub.font_size = 11
+	postit_sub.modulate = Color(0.25, 0.2, 0.0)
+	postit_sub.billboard = BaseMaterial3D.BILLBOARD_DISABLED
+	add_child(postit_sub)
+
+	# Petite plante cactus
+	_make_cylinder(
+		Vector3(-1.0, 0.82, -0.3),
+		0.04, 0.08,
+		Color(0.1, 0.5, 0.2)
+	)
+	_make_cylinder(
+		Vector3(-1.0, 0.9, -0.3),
+		0.025, 0.06,
+		Color(0.15, 0.55, 0.25)
+	)
+	# Pot cactus
+	_make_cylinder(
+		Vector3(-1.0, 0.795, -0.3),
+		0.05, 0.04,
+		Color(0.5, 0.25, 0.15)
+	)
+
+	# Câbles décoratifs (petits cubes)
+>>>>>>> 4c011bd (Ajout d'une cinématique d'intro et polish de Cipher)
 	for i in range(5):
 		_make_box(Vector3(0.68 + i * 0.025, 0.815, -0.302), Vector3(0.008, 0.08, 0.005), Color(0.18, 0.14, 0.10))
 	# Cadran

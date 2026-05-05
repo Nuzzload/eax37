@@ -15,7 +15,8 @@ const C_GREEN      = Color("#22c55e")
 const C_WARN       = Color("#ef4444")
 const C_AMBER      = Color("#ccaa22")
 
-const GAME_SCENE := "res://room.tscn"
+# ← MODIFIÉ : pointe vers la cutscene au lieu de room.tscn directement
+const GAME_SCENE := "res://cutscenes/cutscene.tscn"
 
 # ── GLITCH ────────────────────────────────────────
 const GLITCH_CHARS    := "!@#$%^&*<>?|▓░▒█▄▀±×÷∞Ω"
@@ -30,7 +31,6 @@ const CORRUPT_STRINGS := [
 ]
 
 # ── UPTIME FICTIF ─────────────────────────────────
-# Durée de base en secondes : 42h 17m 08s
 const FAKE_UPTIME_BASE := 152228
 
 # ── BOOT ──────────────────────────────────────────
@@ -161,7 +161,6 @@ func _finish_boot() -> void:
 	_boot_panel.visible = false
 	_menu_start_ms = Time.get_ticks_msec()
 	_fade_in(_main_panel)
-	# Effets post-boot (coroutines en arrière-plan)
 	_typewrite_subtitle()
 	_show_toast("ACCÈS SYSTÈME ACCORDÉ", C_GREEN)
 
@@ -182,7 +181,6 @@ func _build_background() -> void:
 	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(bg)
 
-	# Scanlines statiques
 	for i in range(0, 40):
 		var line := ColorRect.new()
 		line.set_anchors_preset(Control.PRESET_TOP_WIDE)
@@ -193,7 +191,6 @@ func _build_background() -> void:
 		line.position.y = i * 30.0
 		bg.add_child(line)
 
-	# Lueur accent
 	var glow := ColorRect.new()
 	glow.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	glow.color = Color(C_ACCENT.r, C_ACCENT.g, C_ACCENT.b, 0.04)
@@ -205,7 +202,6 @@ func _build_background() -> void:
 	_run_static_flashes()
 
 
-# ── LIGNE DE SCAN ─────────────────────────────────
 func _build_scan_line() -> void:
 	var scan := ColorRect.new()
 	scan.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -226,7 +222,6 @@ func _run_scan_loop(scan: ColorRect) -> void:
 		await get_tree().create_timer(randf_range(8.0, 18.0)).timeout
 
 
-# ── FLASH STATIQUE ────────────────────────────────
 func _run_static_flashes() -> void:
 	while is_inside_tree():
 		await get_tree().create_timer(randf_range(12.0, 40.0)).timeout
@@ -255,21 +250,17 @@ func _build_glitch_layer() -> void:
 	_run_corruption_floaters()
 
 
-# ── ÉVÉNEMENT GLITCH LOURD ────────────────────────
 func _run_heavy_glitch() -> void:
 	while is_inside_tree():
 		await get_tree().create_timer(randf_range(8.0, 20.0)).timeout
 		if not is_inside_tree(): return
 
-		# Barres horizontales
 		var bar_count := randi_range(3, 8)
 		_spawn_glitch_bars(bar_count)
 
-		# Shake du panneau principal si visible
 		if _main_panel != null and _main_panel.visible:
 			_shake_panel(_main_panel)
 
-		# Double flash rapide
 		for _f in 2:
 			if not is_inside_tree(): return
 			var flash := ColorRect.new()
@@ -285,10 +276,8 @@ func _run_heavy_glitch() -> void:
 			await get_tree().create_timer(randf_range(0.04, 0.12)).timeout
 
 
-# ── BARRES DE GLITCH ──────────────────────────────
 func _spawn_glitch_bars(count: int) -> void:
 	var vp := get_viewport().get_visible_rect().size
-	# Couleurs de bruit possibles
 	var bar_colors := [
 		Color(1.0, 1.0, 1.0, 0.08),
 		Color(C_ACCENT.r, C_ACCENT.g, C_ACCENT.b, 0.18),
@@ -315,7 +304,6 @@ func _spawn_glitch_bars(count: int) -> void:
 		bar.queue_free()
 
 
-# ── SHAKE ─────────────────────────────────────────
 func _shake_panel(target: Control, intensity: float = 7.0) -> void:
 	var tw := create_tween()
 	for _i in 7:
@@ -326,7 +314,6 @@ func _shake_panel(target: Control, intensity: float = 7.0) -> void:
 	tw.tween_property(target, "position", Vector2.ZERO, 0.04)
 
 
-# ── FLOATERS DE CORRUPTION ────────────────────────
 func _run_corruption_floaters() -> void:
 	while is_inside_tree():
 		await get_tree().create_timer(randf_range(3.0, 9.0)).timeout
@@ -354,7 +341,6 @@ func _run_corruption_floaters() -> void:
 		lbl.queue_free()
 
 
-# ── GLITCH SUR BOUTON HOVER ───────────────────────
 func _glitch_btn_text(btn: Button, original: String) -> void:
 	for _i in randi_range(2, 4):
 		if not is_inside_tree() or not is_instance_valid(btn): return
@@ -367,7 +353,6 @@ func _glitch_btn_text(btn: Button, original: String) -> void:
 		btn.text = original
 
 
-# ── BRACKETS HUD ──────────────────────────────────
 func _build_corner_brackets() -> void:
 	var c := Control.new()
 	c.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -376,19 +361,17 @@ func _build_corner_brackets() -> void:
 
 	var m := 24.0
 	var a := 32.0
-	var t := 2.0
 	var col := Color(C_ACCENT.r, C_ACCENT.g, C_ACCENT.b, 0.4)
 
-	_bracket_rect(c, col, 0, 0, 0, 0,  m,       m + a,  m,       m + t)
-	_bracket_rect(c, col, 0, 0, 0, 0,  m,       m + t,  m,       m + a)
-	_bracket_rect(c, col, 1, 1, 0, 0,  -(m+a),  -m,     m,       m + t)
-	_bracket_rect(c, col, 1, 1, 0, 0,  -(m+t),  -m,     m,       m + a)
-	_bracket_rect(c, col, 0, 0, 1, 1,  m,       m + a,  -(m+t),  -m)
-	_bracket_rect(c, col, 0, 0, 1, 1,  m,       m + t,  -(m+a),  -m)
-	_bracket_rect(c, col, 1, 1, 1, 1,  -(m+a),  -m,     -(m+t),  -m)
-	_bracket_rect(c, col, 1, 1, 1, 1,  -(m+t),  -m,     -(m+a),  -m)
+	_bracket_rect(c, col, 0, 0, 0, 0,  m,       m + a,  m,       m + 2)
+	_bracket_rect(c, col, 0, 0, 0, 0,  m,       m + 2,  m,       m + a)
+	_bracket_rect(c, col, 1, 1, 0, 0,  -(m+a),  -m,     m,       m + 2)
+	_bracket_rect(c, col, 1, 1, 0, 0,  -(m+2),  -m,     m,       m + a)
+	_bracket_rect(c, col, 0, 0, 1, 1,  m,       m + a,  -(m+2),  -m)
+	_bracket_rect(c, col, 0, 0, 1, 1,  m,       m + 2,  -(m+a),  -m)
+	_bracket_rect(c, col, 1, 1, 1, 1,  -(m+a),  -m,     -(m+2),  -m)
+	_bracket_rect(c, col, 1, 1, 1, 1,  -(m+2),  -m,     -(m+a),  -m)
 
-	# Pulse des brackets
 	var tw := create_tween().set_loops()
 	tw.tween_property(c, "modulate:a", 0.5, 2.5).set_trans(Tween.TRANS_SINE)
 	tw.tween_property(c, "modulate:a", 1.0, 2.5).set_trans(Tween.TRANS_SINE)
@@ -417,7 +400,6 @@ func _build_main_panel() -> void:
 	_main_panel.visible = false
 	add_child(_main_panel)
 
-	# Particules derrière le contenu
 	_build_particles(_main_panel)
 
 	var center := CenterContainer.new()
@@ -439,7 +421,6 @@ func _build_main_panel() -> void:
 	_build_bottom_bar(_main_panel)
 
 
-# ── PARTICULES ────────────────────────────────────
 func _build_particles(parent: Control) -> void:
 	var container := Control.new()
 	container.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -451,7 +432,6 @@ func _build_particles(parent: Control) -> void:
 
 
 func _create_particle_loop(parent: Control) -> void:
-	# Démarrage décalé pour éviter que tout arrive en même temps
 	await get_tree().create_timer(randf_range(0.0, 5.0)).timeout
 
 	while is_inside_tree():
@@ -480,7 +460,6 @@ func _create_particle_loop(parent: Control) -> void:
 		await get_tree().create_timer(randf_range(0.1, 2.5)).timeout
 
 
-# ── BARRES ────────────────────────────────────────
 func _build_top_bar(parent: Control) -> void:
 	var bar := PanelContainer.new()
 	bar.anchor_left   = 0.0; bar.anchor_right  = 1.0
@@ -537,7 +516,6 @@ func _build_bottom_bar(parent: Control) -> void:
 	hbox.add_theme_constant_override("separation", 6)
 	bar.add_child(hbox)
 
-	# Dot TOR clignotant
 	var dot := ColorRect.new()
 	dot.color = C_GREEN
 	dot.custom_minimum_size = Vector2(6, 6)
@@ -554,14 +532,12 @@ func _build_bottom_bar(parent: Control) -> void:
 	conn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	hbox.add_child(conn)
 
-	# Uptime en temps réel
 	_uptime_label = Label.new()
 	_uptime_label.add_theme_font_size_override("font_size", 9)
 	_uptime_label.add_theme_color_override("font_color", C_TEXT_DIM)
 	_uptime_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	hbox.add_child(_uptime_label)
 
-	# Séparateur
 	var sep_lbl := Label.new()
 	sep_lbl.text = "  ·  "
 	sep_lbl.add_theme_font_size_override("font_size", 9)
@@ -577,7 +553,6 @@ func _build_bottom_bar(parent: Control) -> void:
 
 	parent.add_child(bar)
 
-	# Timer uptime
 	_update_uptime()
 	var timer := Timer.new()
 	timer.wait_time = 1.0
@@ -612,7 +587,7 @@ func _make_title_block() -> VBoxContainer:
 	_start_title_pulse()
 
 	_sub_label = Label.new()
-	_sub_label.text = ""  # rempli par typewriter après le boot
+	_sub_label.text = ""
 	_sub_label.add_theme_font_size_override("font_size", 10)
 	_sub_label.add_theme_color_override("font_color", C_ACCENT)
 	_sub_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -648,14 +623,12 @@ func _make_title_block() -> VBoxContainer:
 	return block
 
 
-# ── PULSE TITRE ───────────────────────────────────
 func _start_title_pulse() -> void:
 	var tw := create_tween().set_loops()
 	tw.tween_property(_title_label, "modulate", Color(0.82, 0.68, 1.0, 1.0), 3.0).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 	tw.tween_property(_title_label, "modulate", Color.WHITE, 3.0).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 
 
-# ── GLITCH TITRE ──────────────────────────────────
 func _start_title_glitch() -> void:
 	while is_inside_tree():
 		await get_tree().create_timer(randf_range(3.5, 8.0)).timeout
@@ -670,17 +643,14 @@ func _start_title_glitch() -> void:
 		_title_label.text = TITLE_TEXT
 
 
-# ── TYPEWRITER SOUS-TITRE ─────────────────────────
 func _typewrite_subtitle() -> void:
 	if _sub_label == null: return
 	_sub_label.text = ""
-	# Attend que le menu soit bien visible
 	await get_tree().create_timer(0.3).timeout
 	for i in SUBTITLE_TEXT.length():
 		if not is_inside_tree() or _sub_label == null: return
 		_sub_label.text = SUBTITLE_TEXT.substr(0, i + 1)
 		await get_tree().create_timer(0.045).timeout
-	# Curseur clignotant bref après la fin
 	for _i in range(3):
 		await get_tree().create_timer(0.35).timeout
 		if not is_inside_tree() or _sub_label == null: return
@@ -690,10 +660,9 @@ func _typewrite_subtitle() -> void:
 
 
 # ═══════════════════════════════════════════════════
-# TOAST NOTIFICATION
+# TOAST
 # ═══════════════════════════════════════════════════
 func _show_toast(message: String, col: Color) -> void:
-	# Attend que le menu soit affiché et le typewriter terminé
 	await get_tree().create_timer(1.6).timeout
 	if not is_inside_tree(): return
 
@@ -738,14 +707,12 @@ func _show_toast(message: String, col: Color) -> void:
 	var toast_w := toast.get_combined_minimum_size().x
 	toast.position = Vector2(vp_w + 10.0, 36.0)
 
-	# Slide in
 	var tw_in := create_tween()
 	tw_in.tween_property(toast, "position:x", vp_w - toast_w - 30.0, 0.45).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 	await tw_in.finished
 
 	await get_tree().create_timer(3.0).timeout
 
-	# Slide out + fade
 	var tw_out := create_tween().set_parallel(true)
 	tw_out.tween_property(toast, "position:x", vp_w + 10.0, 0.4).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
 	tw_out.tween_property(toast, "modulate:a", 0.0, 0.4)
@@ -815,7 +782,7 @@ func _make_footer() -> Label:
 
 
 # ═══════════════════════════════════════════════════
-# CONSTRUCTION — PANNEAU PARAMÈTRES
+# PANNEAU PARAMÈTRES
 # ═══════════════════════════════════════════════════
 func _build_settings_panel() -> void:
 	_settings_panel = SettingsPanel.new()
@@ -944,3 +911,4 @@ func _on_quit_pressed() -> void:
 	_fade_out(_main_panel, 0.3, func() -> void:
 		get_tree().quit()
 	)
+	

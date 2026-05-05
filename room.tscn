@@ -3,6 +3,7 @@
 [ext_resource type="Script" uid="uid://cbnut34kftini" path="res://room_scene.gd" id="1_bisa2"]
 [ext_resource type="Texture2D" uid="uid://bdld4pxuvd33n" path="res://os/apps/terminal/new_viewport_texture.tres" id="3_4o3f6"]
 [ext_resource type="PackedScene" uid="uid://bk4d6fhfa17ou" path="res://os/OS.tscn" id="3_v5vuv"]
+[ext_resource type="Script" uid="uid://chj4hslxkyj" path="res://screen_glitch.gd" id="4_v5vuv"]
 
 [sub_resource type="QuadMesh" id="QuadMesh_bisa2"]
 size = Vector2(1.18, 0.7)
@@ -27,3 +28,16 @@ render_target_update_mode = 4
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.35, -0.285)
 mesh = SubResource("QuadMesh_bisa2")
 surface_material_override/0 = SubResource("StandardMaterial3D_bisa2")
+
+[node name="ScreenGlitch" type="CanvasLayer" parent="." unique_id=1613240848]
+layer = 128
+script = ExtResource("4_v5vuv")
+
+[node name="GlitchRoot" type="Control" parent="ScreenGlitch" unique_id=2046633629]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
