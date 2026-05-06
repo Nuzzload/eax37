@@ -61,6 +61,7 @@ var screen_glow_light: OmniLight3D
 var env_ref: Environment
 var is_day_mode := false
 var day_tween: Tween
+var vignette_cr: ColorRect
 
 # ─────────────────────────────────────────────────────────────────────────────
 func _ready():
@@ -980,6 +981,7 @@ void fragment() {
 	cr.set_anchors_preset(Control.PRESET_FULL_RECT)
 	cr.material = mat
 	ctrl.add_child(cr)
+	vignette_cr = cr
 
 
 # ─── CAMÉRA ──────────────────────────────────────────────────────────────────
@@ -1120,6 +1122,8 @@ func _toggle_terminal_view():
 	if is_at_terminal:
 		tween.tween_property(camera, "position", CAM_TERMINAL_POS, 0.6)
 		tween.tween_property(camera, "rotation_degrees", CAM_TERMINAL_ROT, 0.6)
+		if vignette_cr:
+			tween.tween_property(vignette_cr, "modulate:a", 0.0, 0.4)
 		tween.chain().tween_callback(func():
 			sub_viewport.handle_input_locally = true
 			sub_viewport.gui_disable_input = false
@@ -1134,6 +1138,8 @@ func _toggle_terminal_view():
 		os_cursor = null
 		tween.tween_property(camera, "position", CAM_FREE_POS, 0.6)
 		tween.tween_property(camera, "rotation_degrees", CAM_FREE_ROT, 0.6)
+		if vignette_cr:
+			tween.tween_property(vignette_cr, "modulate:a", 1.0, 0.5)
 
 
 # ─── CURSEUR OS ──────────────────────────────────────────────────────────────
