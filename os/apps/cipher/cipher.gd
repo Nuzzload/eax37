@@ -23,14 +23,11 @@ const C_BLUE_DIM  = Color("#0d1a33")
 
 # Messages initiaux du hacker
 const INITIAL_MESSAGES = [
-	{ "from": "UNKNOWN_▓▓▓", "time": "%02d:%02d", "text": "Je sais ce que tu as fait.", "unread": false },
-	{ "from": "UNKNOWN_▓▓▓", "time": "%02d:%02d", "text": "Ne contacte personne. Ne dis rien à personne.", "unread": false },
-	{ "from": "UNKNOWN_▓▓▓", "time": "%02d:%02d", "text": "Tu vas faire exactement ce que je te dis.", "unread": false },
-	{ "from": "UNKNOWN_▓▓▓", "time": "%02d:%02d", "text": "Sinon... Tout le monde saura.", "unread": false },
-	{ "from": "UNKNOWN_▓▓▓", "time": "%02d:%02d", "text": "Première mission. Maintenant.", "unread": false },
-	{ "from": "UNKNOWN_▓▓▓", "time": "%02d:%02d", "text": "Simple.\nRécupère le fichier /documents/password.txt et envoie-le moi ici.", "unread": true },
-	{ "from": "UNKNOWN_▓▓▓", "time": "%02d:%02d", "text": "Tu as 3 heures.", "unread": true },
-	{ "from": "UNKNOWN_▓▓▓", "time": "%02d:%02d", "text": "Et ne joue pas au plus malin. Je regarde.", "unread": true },
+	{ "from": "UNKNOWN_▓▓▓", "time": "02:14", "text": "Je sais ce que tu as fait.", "unread": false },
+	{ "from": "UNKNOWN_▓▓▓", "time": "02:31", "text": "Ne contacte personne. Ne dis rien à personne.", "unread": false },
+	{ "from": "UNKNOWN_▓▓▓", "time": "08:03", "text": "Première mission. Simple.\nRécupère le fichier /documents/password.txt et envoie-le moi ici.", "unread": false },
+	{ "from": "UNKNOWN_▓▓▓", "time": "08:04", "text": "Tu as 3 heures.", "unread": true },
+	{ "from": "UNKNOWN_▓▓▓", "time": "08:05", "text": "Et ne joue pas au plus malin. Je regarde.", "unread": true },
 ]
 
 var is_typing := false
@@ -274,6 +271,18 @@ func _send_message():
 	message_input.text = ""
 	message_input.grab_focus()
 	_scroll_to_bottom()
+
+	# Vérifie si le message complète une mission
+	if MissionManager.check_cipher_message(text):
+		# Petit délai puis message de reward
+		await get_tree().create_timer(1.2).timeout
+		var t2 = Time.get_time_dict_from_system()
+		var reward_time = "%02d:%02d" % [t2["hour"], t2["minute"]]
+		var mission = MissionManager.MISSIONS.get(MissionManager.completed_missions[-1] if not MissionManager.completed_missions.is_empty() else "", {})
+		var reward_msg = mission.get("reward_message", "Bien reçu.")
+		_add_message("UNKNOWN_▓▓▓", reward_time, reward_msg, false)
+		_scroll_to_bottom()
+		return
 
 	# Réponse contextuelle via HackerBrain
 	is_typing = true

@@ -37,7 +37,7 @@ const KEYWORDS = {
 	"insulte": [
 		"connard", "salaud", "ordure", "bâtard", "enfoiré", "fils de",
 		"va te", "ta gueule", "merde", "nique", "con", "idiot", "imbécile",
-		"abruti", "crétin", "débile", "psychopathe", "malade",
+		"abruti", "crétin", "débile", "psychopathe", "malade","ntm","ta mère",
 	],
 	"negocie": [
 		"combien", "argent", "payer", "deal", "marché", "négoci",

@@ -1,103 +1,111 @@
 # mission_manager.gd
+# Autoload "MissionManager"
 extends Node
 
-signal mission_started(mission_id: String)
-signal mission_updated(mission_id: String, step: int)
 signal mission_completed(mission_id: String)
-signal cipher_message_added(msg: Dictionary)
-signal cipher_notifications_changed(count: int)
-signal setting_changed(setting_id: String, value: Variant)
+signal mission_updated(mission_id: String, step: int)
+signal setting_changed(key: String, value: Variant)
 
-var current_mission := "m001"
-var current_step := 0
-
-# Paramètres de l'OS
-var settings := {
-	"crt_filter": true
+# ── ÉTAT ──────────────────────────────────────────
+var current_mission: String = "m001"
+var current_step: int = 0
+var completed_missions: Array = []
+var cipher_unread_count: int = 2  # notifications CIPHER au démarrage
+var settings: Dictionary = {
+	"crt_filter": true,
+	"volume": 1.0,
 }
 
 
-func set_setting(id: String, value: Variant):
-	settings[id] = value
-	setting_changed.emit(id, value)
-
-# Persistance des messages Cipher
-var cipher_history: Array[Dictionary] = [
-	{ "from": "UNKNOWN_▓▓▓", "time": "02:14", "text": "Je sais ce que tu as fait.", "unread": false },
-	{ "from": "UNKNOWN_▓▓▓", "time": "02:31", "text": "Ne contacte personne. Ne dis rien à personne.", "unread": false },
-	{ "from": "UNKNOWN_▓▓▓", "time": "08:03", "text": "Première mission. Simple.\nRécupère le fichier /documents/password.txt et envoie-le moi ici.", "unread": false },
-	{ "from": "UNKNOWN_▓▓▓", "time": "08:04", "text": "Tu as 3 heures.", "unread": true },
-	{ "from": "UNKNOWN_▓▓▓", "time": "08:05", "text": "Et ne joue pas au plus malin. Je regarde.", "unread": true },
-]
-var cipher_unread_count := 2
-
-func _ready():
-	# Délai avant le premier message pour laisser le temps au joueur de s'installer
-	await get_tree().create_timer(5.0).timeout
-	start_mission("m001")
-
-
-func start_mission(id: String):
-	current_mission = id
-	current_step = 0
-	mission_started.emit(id)
-	print("Mission started: ", id)
-
-
-func complete_step(id: String, step: int):
-	if id == current_mission and step == current_step:
-		current_step += 1
-		mission_updated.emit(id, current_step)
-		
-		if current_step >= MISSIONS[id]["steps"].size():
-			complete_mission(id)
+# ── DÉFINITION DES MISSIONS ───────────────────────
+# Chaque mission a des étapes avec des conditions à remplir
+const MISSIONS = {
+	"m001": {
+		"title": "Première livraison",
+		"steps": [
+			{
+				"type": "cipher_contains",   # le message CIPHER doit contenir...
+				"value": "Nx@2024!secure",    # mot de passe exact requis
+				"hint": "Envoie le contenu de documents/password.txt dans CIPHER."
+			}
+		],
+		"reward_message": "Bien. C'est exactement ce que je voulais.\nProchaine instruction à venir.",
+		"next_mission": "m002"
+	},
+	"m002": {
+		"title": "Reconnaissance",
+		"steps": [
+			{
+				"type": "cipher_contains",
+				"value": "22/tcp",
+				"hint": "Lance un nmap sur 10.13.37.1 et envoie le résultat dans CIPHER."
+			}
+		],
+		"reward_message": "Parfait. Je vois que le port 22 est ouvert.\nTu seras utile.",
+		"next_mission": ""
+	}
+}
 
 
-func complete_mission(id: String):
-	mission_completed.emit(id)
-	# Déclenche une petite récompense visuelle ou narrative
-	_trigger_glitch_event()
+# ── API PUBLIQUE ──────────────────────────────────
 
+# Appelé par cipher.gd à chaque message envoyé par le joueur
+func check_cipher_message(text: String) -> bool:
+	if current_mission == "" or not MISSIONS.has(current_mission):
+		return false
 
-func _trigger_glitch_event():
-	# On peut envoyer un signal pour que room_scene ou os_main fasse quelque chose
-	pass
+	var mission = MISSIONS[current_mission]
+	if current_step >= mission["steps"].size():
+		return false
 
+	var step = mission["steps"][current_step]
 
-func add_cipher_message(from: String, text: String, unread: bool = false):
-	var t = Time.get_time_dict_from_system()
-	var time_str = "%02d:%02d" % [t["hour"], t["minute"]]
-	var msg = { "from": from, "time": time_str, "text": text, "unread": unread }
-	cipher_history.append(msg)
-	if unread:
-		cipher_unread_count += 1
-		cipher_notifications_changed.emit(cipher_unread_count)
-	cipher_message_added.emit(msg)
+	match step["type"]:
+		"cipher_contains":
+			if step["value"].to_lower() in text.to_lower():
+				_complete_step()
+				return true
 
-
-func mark_cipher_as_read():
-	cipher_unread_count = 0
-	for msg in cipher_history:
-		msg["unread"] = false
-	cipher_notifications_changed.emit(0)
-
-
-# Appelée par Cipher quand l'utilisateur envoie un message
-func check_cipher_message(text: String):
-	if current_mission == "m001" and current_step == 0:
-		if text.to_lower() == MISSIONS["m001"]["target_password"]:
-			complete_mission("m001")
-			return true
 	return false
 
 
-# Données des missions
-const MISSIONS = {
-	"m001": {
-		"title": "First Contact",
-		"steps": [
-			"Envoyer le mot de passe au hacker via Cipher"
-		],
-		"target_password": "mysuperpassword"
-	}
-}
+func get_current_hint() -> String:
+	if current_mission == "" or not MISSIONS.has(current_mission):
+		return ""
+	var mission = MISSIONS[current_mission]
+	if current_step >= mission["steps"].size():
+		return ""
+	return mission["steps"][current_step].get("hint", "")
+
+
+func is_mission_completed(mission_id: String) -> bool:
+	return mission_id in completed_missions
+
+
+func set_setting(key: String, value: Variant) -> void:
+	settings[key] = value
+	if has_signal("setting_changed"):
+		emit_signal("setting_changed", key, value)
+
+
+# ── INTERNE ───────────────────────────────────────
+
+func _complete_step():
+	var mission = MISSIONS[current_mission]
+	current_step += 1
+
+	if current_step >= mission["steps"].size():
+		_complete_mission()
+	else:
+		mission_updated.emit(current_mission, current_step)
+
+
+func _complete_mission():
+	var mission_id = current_mission
+	completed_missions.append(mission_id)
+	mission_completed.emit(mission_id)
+
+	# Passe à la mission suivante
+	var next = MISSIONS[mission_id].get("next_mission", "")
+	current_mission = next
+	current_step = 0
