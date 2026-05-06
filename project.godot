@@ -19,6 +19,7 @@ config/features=PackedStringArray("4.6", "Forward Plus")
 MissionManager="*res://os/mission_manager.gd"
 HackerBrain="*uid://cdweomy3v2oqp"
 GlitchManager="*uid://dern05u2yspeb"
+GameFS="*uid://cb33uiywhl8rk"
 
 [physics]
 
