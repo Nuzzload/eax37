@@ -1,0 +1,46 @@
+[gd_scene format=3 uid="uid://c47ylrtctksjq"]
+
+[ext_resource type="Script" uid="uid://chr5nvpka0844" path="res://os/ui/window.gd" id="1_mrvs2"]
+
+[node name="Window" type="PanelContainer" unique_id=189073760]
+offset_right = 40.0
+offset_bottom = 40.0
+script = ExtResource("1_mrvs2")
+
+[node name="VBoxContainer" type="VBoxContainer" parent="." unique_id=4890642]
+layout_mode = 2
+theme_override_constants/separation = 0
+
+[node name="TitleBar" type="PanelContainer" parent="VBoxContainer" unique_id=987029243]
+custom_minimum_size = Vector2(0, 32)
+layout_mode = 2
+
+[node name="HBoxContainer" type="HBoxContainer" parent="VBoxContainer/TitleBar" unique_id=1604216655]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="DotAccent" type="ColorRect" parent="VBoxContainer/TitleBar/HBoxContainer" unique_id=184457853]
+custom_minimum_size = Vector2(8, 8)
+layout_mode = 2
+
+[node name="TitleLabel" type="Label" parent="VBoxContainer/TitleBar/HBoxContainer" unique_id=1816303338]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Buttons" type="HBoxContainer" parent="VBoxContainer/TitleBar/HBoxContainer" unique_id=1772048635]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="MinimizeBtn" type="Button" parent="VBoxContainer/TitleBar/HBoxContainer/Buttons" unique_id=1791012579]
+custom_minimum_size = Vector2(20, 20)
+layout_mode = 2
+text = "─"
+
+[node name="CloseBtn" type="Button" parent="VBoxContainer/TitleBar/HBoxContainer/Buttons" unique_id=1586359846]
+custom_minimum_size = Vector2(20, 20)
+layout_mode = 2
+text = " ✕"
+
+[node name="ContentContainer" type="MarginContainer" parent="VBoxContainer" unique_id=687244485]
+layout_mode = 2
+size_flags_vertical = 3

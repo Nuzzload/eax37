@@ -1,0 +1,17 @@
+[gd_scene format=3 uid="uid://b7xkgeka1gv5i"]
+
+[ext_resource type="Script" uid="uid://bbi0c1t46yjh3" path="res://os/desktop_icons.gd" id="1_pqdku"]
+
+[node name="DesktopIcons" type="Control" unique_id=555302081]
+layout_mode = 3
+anchors_preset = 0
+mouse_filter = 1
+script = ExtResource("1_pqdku")
+
+[node name="VBoxContainer" type="VBoxContainer" parent="." unique_id=1276960176]
+clip_contents = true
+layout_mode = 1
+offset_right = 40.0
+offset_bottom = 40.0
+mouse_filter = 0
+theme_override_constants/separation = 4

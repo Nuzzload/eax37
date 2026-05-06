@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="AppResource" load_steps=3 format=3]
+
+[ext_resource type="Script" uid="uid://ylk2d57wuy5p" path="res://os/app_resource.gd" id="1_script"]
+[ext_resource type="PackedScene" uid="uid://cwq68qypopye" path="res://os/apps/cipher/cipher.tscn" id="2_scene"]
+
+[resource]
+script = ExtResource("1_script")
+id = "cipher"
+label = "CIPHER"
+scene = ExtResource("2_scene")
+default_size = Vector2(520, 520)
+accent_color = Color(0.8, 0.133333, 0.2, 1)

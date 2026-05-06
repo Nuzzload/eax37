@@ -1,0 +1,47 @@
+[gd_scene format=3 uid="uid://bwfkwog1ijjo5"]
+
+[ext_resource type="Script" uid="uid://dafjjo5nod2j0" path="res://os/ui/taskbar.gd" id="1_oe5pf"]
+
+[node name="Taskbar" type="PanelContainer" unique_id=164573983]
+offset_right = 40.0
+offset_bottom = 40.0
+script = ExtResource("1_oe5pf")
+
+[node name="MarginContainer" type="MarginContainer" parent="." unique_id=1303436578]
+layout_mode = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 0
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 0
+
+[node name="HBoxContainer" type="HBoxContainer" parent="MarginContainer" unique_id=901085810]
+layout_mode = 2
+theme_override_constants/separation = 8
+alignment = 1
+
+[node name="LogoLabel" type="Label" parent="MarginContainer/HBoxContainer" unique_id=1931166903]
+layout_mode = 2
+text = "EAX37"
+
+[node name="VSeparator" type="VSeparator" parent="MarginContainer/HBoxContainer" unique_id=1376422322]
+custom_minimum_size = Vector2(1, 20)
+layout_mode = 2
+
+[node name="OpenApps" type="HBoxContainer" parent="MarginContainer/HBoxContainer" unique_id=473718337]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Spacer" type="Control" parent="MarginContainer/HBoxContainer" unique_id=1744266037]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="AlertContainer" type="HBoxContainer" parent="MarginContainer/HBoxContainer" unique_id=1577137285]
+layout_mode = 2
+
+[node name="VSeparator2" type="VSeparator" parent="MarginContainer/HBoxContainer" unique_id=1754763550]
+custom_minimum_size = Vector2(1, 20)
+layout_mode = 2
+
+[node name="ClockLabel" type="Label" parent="MarginContainer/HBoxContainer" unique_id=539036387]
+layout_mode = 2
+text = "00:00:00"

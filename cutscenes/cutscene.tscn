@@ -1,0 +1,32 @@
+[gd_scene format=3 uid="uid://cap4moe7o24wg"]
+
+[ext_resource type="Script" uid="uid://dqrxrigjee1fh" path="res://cutscenes/cutscene.gd" id="1_e7jua"]
+[ext_resource type="PackedScene" uid="uid://0n7hpdewbeqq" path="res://room.tscn" id="2_aanlq"]
+
+[node name="Cutscene" type="Node3D" unique_id=418968614]
+script = ExtResource("1_e7jua")
+
+[node name="RoomScene" parent="." unique_id=1464846906 instance=ExtResource("2_aanlq")]
+
+[node name="CineCam" type="Camera3D" parent="." unique_id=1233767948]
+
+[node name="Overlay" type="CanvasLayer" parent="." unique_id=798464566]
+
+[node name="Fade" type="ColorRect" parent="Overlay" unique_id=193218360]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0, 0, 0, 1)
+
+[node name="SkipLabel" type="Label" parent="Overlay" unique_id=1198469113]
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -40.0
+offset_top = -23.0
+grow_horizontal = 0
+grow_vertical = 0

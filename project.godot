@@ -11,8 +11,15 @@ config_version=5
 [application]
 
 config/name="eax37"
+run/main_scene="res://ui/main_menu/MainMenu.tscn"
 config/features=PackedStringArray("4.6", "Forward Plus")
-config/icon="res://icon.svg"
+
+[autoload]
+
+MissionManager="*res://os/mission_manager.gd"
+HackerBrain="*uid://cdweomy3v2oqp"
+GlitchManager="*uid://dern05u2yspeb"
+GameFS="*uid://cb33uiywhl8rk"
 
 [physics]
 
