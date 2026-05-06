@@ -2,8 +2,6 @@
 
 [ext_resource type="FontFile" uid="uid://cw7cdtqrwdmn8" path="res://os/apps/terminal/font.tres" id="1_7d6gb"]
 [ext_resource type="Script" uid="uid://cuo4trjjad1xb" path="res://os/apps/terminal/terminal_text.gd" id="2_b5qft"]
-[ext_resource type="Script" uid="uid://dgvaesn3nb765" path="res://os/apps/terminal/foldernode.gd" id="3_0u45f"]
-[ext_resource type="Script" uid="uid://cj4x0lvr73g3v" path="res://os/apps/terminal/filenode.gd" id="3_b5qft"]
 
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_0u45f"]
 
