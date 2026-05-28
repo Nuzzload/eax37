@@ -1,0 +1,7 @@
+May  1 21:44:11 eax37 sshd[1432]: Failed password for root from 10.13.37.1 port 54231 ssh2
+May  1 21:44:14 eax37 sshd[1432]: Failed password for root from 10.13.37.1 port 54231 ssh2
+May  1 21:44:17 eax37 sshd[1432]: Failed password for root from 10.13.37.1 port 54231 ssh2
+May  1 21:44:19 eax37 sshd[1432]: Connection closed by 10.13.37.1 port 54231 [preauth]
+May  1 22:01:33 eax37 sudo[1841]: hacker : TTY=pts/0 ; PWD=/home/hacker ; USER=root ; COMMAND=/bin/cat /etc/shadow
+May  1 22:01:33 eax37 sudo[1841]: pam_unix(sudo:auth): authentication failure; user=hacker
+May  1 22:10:05 eax37 login[2001]: ROOT LOGIN on pts/0

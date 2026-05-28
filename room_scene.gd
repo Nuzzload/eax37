@@ -58,6 +58,7 @@ var street_lamp_light: OmniLight3D
 var window_cold_light: OmniLight3D
 var sun_light: DirectionalLight3D
 var screen_glow_light: OmniLight3D
+var pc_led_light: OmniLight3D
 var env_ref: Environment
 var is_day_mode := false
 var day_tween: Tween
@@ -82,9 +83,13 @@ func _ready():
 	_setup_camera()
 	_build_crt_overlay()
 	_build_vignette()
+	_build_chromatic_aberration()
+	_build_film_grain()
 	Input.mouse_mode = Input.MOUSE_MODE_CONFINED
 	_start_flicker.call_deferred()
 	_start_street_lamp_flicker.call_deferred()
+	_start_pc_led_pulse.call_deferred()
+	_start_ambient_breath.call_deferred()
 
 
 func _notification(what: int):
@@ -137,9 +142,9 @@ func _setup_environment():
 	env.ssil_intensity = 1.0
 
 	env.adjustment_enabled    = true
-	env.adjustment_brightness = 0.95
-	env.adjustment_contrast   = 1.20
-	env.adjustment_saturation = 0.72
+	env.adjustment_brightness = 1.05
+	env.adjustment_contrast   = 1.08
+	env.adjustment_saturation = 0.78
 
 	env_ref = env
 	var we := WorldEnvironment.new()
@@ -878,9 +883,14 @@ func _setup_lights():
 		Vector3(0.88, 0.95, -0.24), COL_BULB, 1.6, 1.8
 	)
 	_add_omni_light(Vector3(0.5, 2.73, -0.5), COL_BULB, 0.06, 2.0)
-	screen_glow_light = _add_omni_light(Vector3(0, 1.35, 0.18), Color(0.20, 0.85, 0.40), 0.15, 0.85)
+	# Screen glow étendu pour couvrir tout le bureau (gauche inclus)
+	screen_glow_light = _add_omni_light(Vector3(-0.1, 1.05, 0.10), Color(0.18, 0.82, 0.38), 0.28, 1.55)
+	# LED rouge power indicator (moniteur)
 	_add_omni_light(Vector3(0.60, 0.826, -0.30), Color(0.8, 0.05, 0.02), 0.04, 0.25)
+	# Ambiance lampadaire sol
 	_add_omni_light(Vector3(0.0, 0.02, -1.5), COL_STREET_LAMP, 0.18, 2.2)
+	# LED verte tour PC — éclaire légèrement le côté gauche du bureau
+	pc_led_light = _add_omni_light(Vector3(-0.81, 0.42, -0.06), Color(0.0, 0.92, 0.22), 0.06, 0.55)
 
 	sun_light = DirectionalLight3D.new()
 	sun_light.light_color  = Color(1.0, 0.96, 0.85)
@@ -954,14 +964,14 @@ func _build_vignette() -> void:
 	ctrl.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	cl.add_child(ctrl)
 
-	# Shader de vignette radiale progressive
+	# Shader de vignette radiale douce (inspiré Mouthwashing / Encryption)
 	var shader := Shader.new()
 	shader.code = """
 shader_type canvas_item;
 
-uniform float strength : hint_range(0.0, 2.0) = 0.88;
-uniform float inner_radius : hint_range(0.0, 1.0) = 0.28;
-uniform float smoothness : hint_range(0.0, 1.0) = 0.72;
+uniform float strength : hint_range(0.0, 2.0) = 0.55;
+uniform float inner_radius : hint_range(0.0, 1.0) = 0.45;
+uniform float smoothness : hint_range(0.0, 1.0) = 0.52;
 uniform float aspect : hint_range(0.5, 2.5) = 1.778;
 
 void fragment() {
@@ -1113,6 +1123,7 @@ func _toggle_lamp():
 
 func _toggle_terminal_view():
 	is_at_terminal = !is_at_terminal
+	GlitchManager.terminal_active = is_at_terminal
 	if tween: tween.kill()
 	tween = create_tween()
 	tween.set_ease(Tween.EASE_IN_OUT)
@@ -1120,10 +1131,11 @@ func _toggle_terminal_view():
 	tween.set_parallel(true)
 
 	if is_at_terminal:
-		tween.tween_property(camera, "position", CAM_TERMINAL_POS, 0.6)
-		tween.tween_property(camera, "rotation_degrees", CAM_TERMINAL_ROT, 0.6)
+		tween.tween_property(camera, "position", CAM_TERMINAL_POS, 0.7)
+		tween.tween_property(camera, "rotation_degrees", CAM_TERMINAL_ROT, 0.7)
 		if vignette_cr:
-			tween.tween_property(vignette_cr, "modulate:a", 0.0, 0.4)
+			# On garde une vignette subtile en mode terminal (cadre cinématique)
+			tween.tween_property(vignette_cr, "modulate:a", 0.18, 0.6)
 		tween.chain().tween_callback(func():
 			sub_viewport.handle_input_locally = true
 			sub_viewport.gui_disable_input = false
@@ -1136,10 +1148,10 @@ func _toggle_terminal_view():
 		sub_viewport.gui_disable_input = true
 		Input.mouse_mode = Input.MOUSE_MODE_CONFINED
 		os_cursor = null
-		tween.tween_property(camera, "position", CAM_FREE_POS, 0.6)
-		tween.tween_property(camera, "rotation_degrees", CAM_FREE_ROT, 0.6)
+		tween.tween_property(camera, "position", CAM_FREE_POS, 0.7)
+		tween.tween_property(camera, "rotation_degrees", CAM_FREE_ROT, 0.7)
 		if vignette_cr:
-			tween.tween_property(vignette_cr, "modulate:a", 1.0, 0.5)
+			tween.tween_property(vignette_cr, "modulate:a", 1.0, 0.6)
 
 
 # ─── CURSEUR OS ──────────────────────────────────────────────────────────────
@@ -1183,7 +1195,7 @@ func _build_crt_overlay() -> void:
 		line.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		line.size = Vector2(vp.x, 1.0)
 		line.position = Vector2(0.0, idx * spacing)
-		line.color = Color(0.0, 0.0, 0.0, 0.055)
+		line.color = Color(0.0, 0.0, 0.0, 0.022)
 		scanline_root.add_child(line)
 		idx += 1
 
@@ -1225,8 +1237,108 @@ func _run_phosphor_sweep(band_group: Control, vp_h: float, band_h: float) -> voi
 		await get_tree().create_timer(randf_range(0.0, 0.2)).timeout
 
 
+# ─── ABERRATION CHROMATIQUE ──────────────────────────────────────────────────
+# Légère séparation RGB aux bords — style Mouthwashing / Encryption
+func _build_chromatic_aberration() -> void:
+	var cl := CanvasLayer.new()
+	cl.layer = 11
+	add_child(cl)
+
+	var cr := ColorRect.new()
+	cr.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	cr.set_anchors_preset(Control.PRESET_FULL_RECT)
+
+	var shader := Shader.new()
+	shader.code = """
+shader_type canvas_item;
+uniform sampler2D SCREEN_TEXTURE : hint_screen_texture, filter_linear_mipmap;
+uniform float aberration : hint_range(0.0, 0.02) = 0.0032;
+
+void fragment() {
+	vec2 dir = normalize(UV - vec2(0.5)) * aberration;
+	float dist = length(UV - vec2(0.5)) * 2.0;
+	float strength = smoothstep(0.25, 1.0, dist);
+	float r = texture(SCREEN_TEXTURE, UV + dir * strength).r;
+	float g = texture(SCREEN_TEXTURE, UV).g;
+	float b = texture(SCREEN_TEXTURE, UV - dir * strength).b;
+	COLOR = vec4(r, g, b, texture(SCREEN_TEXTURE, UV).a);
+}
+"""
+	var mat := ShaderMaterial.new()
+	mat.shader = shader
+	cr.material = mat
+	cl.add_child(cr)
+
+
+# ─── LED TOUR PC — PULSATION ─────────────────────────────────────────────────
+func _start_pc_led_pulse() -> void:
+	while is_inside_tree():
+		# Pause longue entre battements
+		await get_tree().create_timer(randf_range(1.8, 4.2)).timeout
+		if not pc_led_light: break
+		# Double-blink (heartbeat)
+		for _i in range(2):
+			var tw := create_tween()
+			tw.tween_property(pc_led_light, "light_energy", 0.18, 0.08)
+			await tw.finished
+			tw = create_tween()
+			tw.tween_property(pc_led_light, "light_energy", 0.04, 0.18)
+			await tw.finished
+			await get_tree().create_timer(0.12).timeout
+
+
+# ─── RESPIRATION AMBIANTE ────────────────────────────────────────────────────
+# Légère pulsation de la lumière ambiante — donne une impression de salle vivante
+func _start_ambient_breath() -> void:
+	while is_inside_tree():
+		if env_ref:
+			var tw := create_tween()
+			tw.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+			tw.tween_method(func(v: float): env_ref.ambient_light_energy = v, 1.05, 1.12, 3.2)
+			await tw.finished
+			tw = create_tween()
+			tw.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+			tw.tween_method(func(v: float): env_ref.ambient_light_energy = v, 1.12, 1.05, 4.0)
+			await tw.finished
+		else:
+			await get_tree().create_timer(2.0).timeout
+
+
+# ─── GRAIN CINÉMATIQUE ────────────────────────────────────────────────────────
+func _build_film_grain() -> void:
+	var cl := CanvasLayer.new()
+	cl.layer = 12          # au-dessus de la vignette (10), sous le glitch (128)
+	add_child(cl)
+
+	var cr := ColorRect.new()
+	cr.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	cr.set_anchors_preset(Control.PRESET_FULL_RECT)
+
+	var shader := Shader.new()
+	shader.code = """
+shader_type canvas_item;
+
+uniform float strength : hint_range(0.0, 0.15) = 0.042;
+
+void fragment() {
+	// Bruit pseudo-aléatoire animé — grain pellicule
+	vec2 uv = FRAGCOORD.xy;
+	float t = TIME * 23.7;
+	float n = fract(sin(dot(uv + t, vec2(12.9898, 78.233))) * 43758.5453);
+	// Légère teinte chaude (Mouthwashing)
+	vec3 grain_col = mix(vec3(n), vec3(n * 1.05, n * 0.95, n * 0.88), 0.35);
+	float alpha = (n - 0.5) * strength;
+	COLOR = vec4(grain_col, alpha);
+}
+"""
+	var mat := ShaderMaterial.new()
+	mat.shader = shader
+	cr.material = mat
+	cl.add_child(cr)
+
+
 # ─── HELPERS MESH ─────────────────────────────────────────────────────────────
-func _make_box(pos: Vector3, size: Vector3, color: Color, emissive: bool = false) -> MeshInstance3D:
+func _make_box(pos: Vector3, size: Vector3, color: Color, emissive: bool = false, roughness: float = 0.82, metallic: float = 0.0) -> MeshInstance3D:
 	var mi   := MeshInstance3D.new()
 	var mesh := BoxMesh.new()
 	mesh.size = size
@@ -1234,6 +1346,9 @@ func _make_box(pos: Vector3, size: Vector3, color: Color, emissive: bool = false
 	mi.position = pos
 	var mat := StandardMaterial3D.new()
 	mat.albedo_color = color
+	mat.roughness = roughness
+	mat.metallic  = metallic
+	mat.metallic_specular = 0.25
 	if emissive:
 		mat.emission_enabled = true
 		mat.emission = color
@@ -1243,7 +1358,7 @@ func _make_box(pos: Vector3, size: Vector3, color: Color, emissive: bool = false
 	return mi
 
 
-func _make_box_rot(pos: Vector3, size: Vector3, color: Color, rot_deg: Vector3, emissive: bool = false) -> MeshInstance3D:
+func _make_box_rot(pos: Vector3, size: Vector3, color: Color, rot_deg: Vector3, emissive: bool = false, roughness: float = 0.82, metallic: float = 0.0) -> MeshInstance3D:
 	var mi   := MeshInstance3D.new()
 	var mesh := BoxMesh.new()
 	mesh.size = size
@@ -1252,6 +1367,9 @@ func _make_box_rot(pos: Vector3, size: Vector3, color: Color, rot_deg: Vector3, 
 	mi.rotation_degrees = rot_deg
 	var mat := StandardMaterial3D.new()
 	mat.albedo_color = color
+	mat.roughness = roughness
+	mat.metallic  = metallic
+	mat.metallic_specular = 0.25
 	if emissive:
 		mat.emission_enabled = true
 		mat.emission = color
@@ -1272,7 +1390,7 @@ func _make_box_with_mat(pos: Vector3, size: Vector3, mat: StandardMaterial3D) ->
 	return mi
 
 
-func _make_cylinder(pos: Vector3, radius: float, height: float, color: Color, emissive: bool = false) -> MeshInstance3D:
+func _make_cylinder(pos: Vector3, radius: float, height: float, color: Color, emissive: bool = false, roughness: float = 0.65, metallic: float = 0.35) -> MeshInstance3D:
 	var mi   := MeshInstance3D.new()
 	var mesh := CylinderMesh.new()
 	mesh.top_radius    = radius
@@ -1282,6 +1400,9 @@ func _make_cylinder(pos: Vector3, radius: float, height: float, color: Color, em
 	mi.position = pos
 	var mat := StandardMaterial3D.new()
 	mat.albedo_color = color
+	mat.roughness = roughness
+	mat.metallic  = metallic
+	mat.metallic_specular = 0.4
 	if emissive:
 		mat.emission_enabled = true
 		mat.emission = color

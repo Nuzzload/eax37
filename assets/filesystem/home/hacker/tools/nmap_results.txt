@@ -1,0 +1,13 @@
+Nmap scan report for 10.13.37.1
+Host is up (0.0018s latency).
+
+PORT     STATE  SERVICE   VERSION
+22/tcp   open   ssh       OpenSSH 8.9p1
+80/tcp   open   http      Apache httpd 2.4.51
+443/tcp  open   https     Apache httpd 2.4.51
+3306/tcp closed mysql
+
+OS: Linux 5.15 (Ubuntu 22.04)
+MAC: DE:AD:BE:EF:00:01
+
+Nmap done: 1 IP address (1 host up) scanned in 3.21 seconds

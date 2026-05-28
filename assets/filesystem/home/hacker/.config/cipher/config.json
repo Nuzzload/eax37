@@ -1,0 +1,9 @@
+{
+  "alias": "gh0st",
+  "server": "cipher.eax37.onion",
+  "port": 1337,
+  "encryption": "AES-256-GCM",
+  "auto_delete_after": 86400,
+  "notify_sound": false,
+  "theme": "dark_red"
+}

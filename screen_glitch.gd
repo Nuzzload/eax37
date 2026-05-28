@@ -15,6 +15,9 @@ func _ready() -> void:
 
 
 func _on_glitch_requested(intensity: float, duration: float) -> void:
+	# Ne pas afficher le glitch quand le joueur est sur l'écran
+	if GlitchManager.terminal_active:
+		return
 	_run_glitch(intensity, duration)
 
 

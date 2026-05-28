@@ -105,7 +105,7 @@ func get_terminal_path() -> String:
 	var parts: Array = []
 	var node = current_dir
 	while node != null and node != root:
-		parts.insert(0, node.name)
+		parts.insert(0, node.node_name)
 		node = node.parent
 
 	var full_path = "/" + "/".join(parts)
@@ -500,7 +500,7 @@ func cmd_ls(args: Array[String]):
 
 func cmd_cd(args: Array[String]):
 	if args.is_empty():
-		current_dir = GameFS.get_root()
+		current_dir = GameFS.get_home()
 		path_stack.clear()
 		return
 
@@ -558,7 +558,7 @@ func cmd_cat(args: Array[String]):
 		if node == null or node.is_folder:
 			print_line("cat: %s: No such file or directory" % fname, "red")
 			continue
-		if fname == "shadow" and user != "root":
+		if node.node_name == "shadow" and user != "root":
 			print_line("cat: %s: Permission denied" % fname, "red")
 			continue
 		for line in node.get_content().split("\n"):

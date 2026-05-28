@@ -1,0 +1,5 @@
+May  1 22:00:01 eax37 CRON[1789]: (root) CMD (/usr/lib/apt/apt.systemd.daily)
+May  1 22:03:44 eax37 kernel: [UFW BLOCK] IN=eth0 OUT= SRC=10.13.37.1 DST=10.13.37.42 PROTO=TCP DPT=22
+May  1 22:05:11 eax37 kernel: [UFW BLOCK] IN=eth0 OUT= SRC=10.13.37.1 DST=10.13.37.42 PROTO=TCP DPT=4444
+May  1 22:09:58 eax37 systemd[1]: Starting Session 4 of user hacker.
+May  1 22:14:03 eax37 kernel: [UFW BLOCK] IN=eth0 OUT= SRC=185.220.101.0 DST=10.13.37.42 PROTO=TCP DPT=22
