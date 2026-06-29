@@ -193,8 +193,41 @@ func _recoil() -> void:
 func _end_cutscene() -> void:
 	if _sub_viewport and _sub_viewport.has_meta("in_cutscene"):
 		_sub_viewport.remove_meta("in_cutscene")
+		if _sub_viewport:
+			_sub_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	await _fade_to(1.0, 0.4)
-	get_tree().change_scene_to_file(GAME_SCENE)
+	_handoff_to_room()
+
+
+func _handoff_to_room() -> void:
+	# Ajoute un overlay noir sur la room pour un fondu d'entrée propre
+	var cl := CanvasLayer.new()
+	cl.layer = 100
+	var overlay := ColorRect.new()
+	overlay.color = Color(0, 0, 0, 1)
+	overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	cl.add_child(overlay)
+	room_scene.add_child(cl)
+
+	# Passe la main à la room déjà chargée sans la recharger (évite double-chargement)
+	room_scene.set_process_unhandled_input(true)
+	remove_child(room_scene)
+	get_tree().root.add_child(room_scene)
+	get_tree().current_scene = room_scene
+
+	# Active la caméra de la room maintenant qu'elle est dans l'arbre
+	var cam = room_scene.get("camera")
+	if cam is Camera3D:
+		cam.make_current()
+
+	# Lance le fondu depuis l'overlay (indépendant de la cutscene)
+	var tw := overlay.create_tween()
+	tw.tween_property(overlay, "color:a", 0.0, 1.2).set_ease(Tween.EASE_OUT)
+	tw.tween_callback(cl.queue_free)
+
+	# Libère la cutscene (son overlay noir disparaît, remplacé par celui de la room)
+	queue_free()
 
 
 # ── HELPERS ───────────────────────────────────────

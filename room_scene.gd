@@ -63,6 +63,7 @@ var env_ref: Environment
 var is_day_mode := false
 var day_tween: Tween
 var vignette_cr: ColorRect
+var _clutter_nodes: Array = []  # objets de désordre progressif
 
 # ─────────────────────────────────────────────────────────────────────────────
 func _ready():
@@ -90,6 +91,8 @@ func _ready():
 	_start_street_lamp_flicker.call_deferred()
 	_start_pc_led_pulse.call_deferred()
 	_start_ambient_breath.call_deferred()
+	MissionManager.game_ending.connect(_on_game_ending)
+	MissionManager.mission_completed.connect(_on_mission_completed_room)
 
 
 func _notification(what: int):
@@ -605,6 +608,23 @@ func _build_decorations():
 		var lw2 := 0.078 if ln % 2 != 1 else 0.060
 		_make_box(Vector3(-1.140, 0.803, -0.19 + ln * 0.026), Vector3(lw2, 0.002, 0.004), Color(0.28, 0.22, 0.16))
 
+	# ── Post-it mot de passe (cible du zoom dans la cinématique) ──
+	_make_box_rot(
+		Vector3(-0.58, 0.785, 0.28),
+		Vector3(0.10, 0.002, 0.08),
+		Color(0.72, 0.66, 0.22),
+		Vector3(0.0, -8.0, 0.0)
+	)
+	var pwd_label := Label3D.new()
+	pwd_label.text = "Nx@2024!"
+	pwd_label.font_size = 9
+	pwd_label.modulate = Color(0.12, 0.08, 0.04)
+	pwd_label.position = Vector3(-0.58, 0.787, 0.28)
+	pwd_label.rotation_degrees = Vector3(-90.0, -8.0, 0.0)
+	pwd_label.pixel_size = 0.0010
+	pwd_label.billboard = BaseMaterial3D.BILLBOARD_DISABLED
+	add_child(pwd_label)
+
 	# ── Stylo / crayon sur le bureau ──
 	_make_box(Vector3(-0.30, 0.789, 0.30), Vector3(0.008, 0.008, 0.145), Color(0.18, 0.14, 0.10))
 	_make_box(Vector3(-0.300, 0.789, 0.375), Vector3(0.007, 0.007, 0.010), Color(0.62, 0.52, 0.08))
@@ -740,7 +760,7 @@ func _build_wall_decorations():
 	_make_cylinder(Vector3(2.962, 0.05, -1.24), 0.008, 0.030, COL_METAL_DARK)
 
 	# ── Note post-it (légèrement incliné) ──
-	var postit := _make_box_rot(
+	var _postit := _make_box_rot(
 		Vector3(-0.2, 1.62, -2.438),
 		Vector3(0.18, 0.18, 0.010),
 		Color(0.78, 0.70, 0.28),
@@ -750,6 +770,24 @@ func _build_wall_decorations():
 	_make_box(Vector3(-0.2, 1.64, -2.434), Vector3(0.10, 0.007, 0.003), Color(0.20, 0.16, 0.10))
 	_make_box(Vector3(-0.2, 1.61, -2.434), Vector3(0.08, 0.007, 0.003), Color(0.20, 0.16, 0.10))
 	_make_box(Vector3(-0.2, 1.58, -2.434), Vector3(0.11, 0.007, 0.003), Color(0.20, 0.16, 0.10))
+
+	# ── Post-it IP (collé sur le bord du moniteur) ──
+	_make_box_rot(
+		Vector3(0.38, 1.71, -2.435),
+		Vector3(0.14, 0.10, 0.008),
+		Color(0.82, 0.42, 0.28, 1.0),
+		Vector3(0, -2.0, 1.5)
+	)
+	var ip_label := Label3D.new()
+	ip_label.text = "10.13.37.254"
+	ip_label.font_size = 10
+	ip_label.modulate = Color(0.12, 0.08, 0.05)
+	ip_label.position = Vector3(0.38, 1.712, -2.427)
+	ip_label.rotation_degrees = Vector3(0, -2.0, 1.5)
+	ip_label.pixel_size = 0.0012
+	ip_label.billboard = BaseMaterial3D.BILLBOARD_DISABLED
+	ip_label.no_depth_test = false
+	add_child(ip_label)
 
 	# ── Câble ampoule plafond ──
 	_make_box(Vector3(0.5, 2.92, -0.5), Vector3(0.006, 0.16, 0.006), Color(0.07, 0.06, 0.05))
@@ -1001,6 +1039,7 @@ func _setup_camera():
 	camera.rotation_degrees = CAM_FREE_ROT
 	camera.fov = 62
 	add_child(camera)
+	camera.make_current()
 
 
 # ─── INPUT ───────────────────────────────────────────────────────────────────
@@ -1388,6 +1427,94 @@ func _make_box_with_mat(pos: Vector3, size: Vector3, mat: StandardMaterial3D) ->
 	mi.material_override = mat
 	add_child(mi)
 	return mi
+
+
+# ─── PROGRESSIVE CLUTTER ─────────────────────────────────────────────────────
+func _on_mission_completed_room(mission_id: String) -> void:
+	match mission_id:
+		"m001":
+			# Tasse de café sur le bureau
+			var mug := _make_cylinder(Vector3(0.55, 1.062, -2.25), 0.028, 0.060, Color(0.20, 0.16, 0.12))
+			_make_cylinder(Vector3(0.55, 1.088, -2.25), 0.025, 0.005, Color(0.08, 0.05, 0.03), true)
+			_make_cylinder(Vector3(0.55, 1.058, -2.32), 0.030, 0.006, Color(0.16, 0.11, 0.07))
+			_clutter_nodes.append(mug)
+		"m002":
+			# Feuille griffonnée froissée sur le bureau
+			var paper := _make_box_rot(
+				Vector3(-0.35, 1.057, -2.20),
+				Vector3(0.12, 0.003, 0.09),
+				Color(0.82, 0.78, 0.68),
+				Vector3(0.5, 14.0, 2.0)
+			)
+			_make_box_rot(Vector3(-0.35, 1.062, -2.20), Vector3(0.08, 0.002, 0.002), Color(0.15, 0.12, 0.10), Vector3(0.5, 14.0, 2.0))
+			_make_box_rot(Vector3(-0.35, 1.059, -2.22), Vector3(0.06, 0.002, 0.002), Color(0.15, 0.12, 0.10), Vector3(0.5, 14.0, 2.0))
+			_clutter_nodes.append(paper)
+		"m003":
+			# Boule de papier froissée
+			var ball := _make_cylinder(Vector3(0.25, 1.057, -2.30), 0.022, 0.040, Color(0.72, 0.68, 0.58))
+			_clutter_nodes.append(ball)
+		"m004":
+			# Canette vide sur le bureau
+			var can := _make_cylinder(Vector3(-0.18, 1.074, -2.28), 0.020, 0.072, Color(0.65, 0.12, 0.10))
+			_make_cylinder(Vector3(-0.18, 1.110, -2.28), 0.018, 0.004, Color(0.50, 0.10, 0.08))
+			_clutter_nodes.append(can)
+
+
+# ─── ENDING SEQUENCE ─────────────────────────────────────────────────────────
+func _on_game_ending(ending_type: String) -> void:
+	# Attendre que CIPHER affiche ses derniers messages (~15s worst case)
+	await get_tree().create_timer(16.0).timeout
+	_play_ending_sequence(ending_type)
+
+
+func _play_ending_sequence(ending_type: String) -> void:
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+
+	# ── Couche de fondu ──
+	var cl := CanvasLayer.new()
+	cl.layer = 200
+	add_child(cl)
+
+	var fade := ColorRect.new()
+	fade.color = Color(0, 0, 0, 0)
+	fade.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	fade.set_anchors_preset(Control.PRESET_FULL_RECT)
+	cl.add_child(fade)
+
+	# ── Texte de fin ──
+	var label := Label.new()
+	label.visible = false
+	label.set_anchors_preset(Control.PRESET_CENTER)
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	label.custom_minimum_size = Vector2(600, 0)
+	label.position -= Vector2(300, 60)
+	label.add_theme_font_size_override("font_size", 14)
+	label.add_theme_color_override("font_color", Color(0.75, 0.72, 0.70))
+
+	if ending_type == "good":
+		label.text = "Tu as retourné l'attaque contre celui qui te contrôlait.\n\nPersonne ne saura jamais ce qui s'est passé cette nuit.\n\nMais toi, tu sais."
+	else:
+		label.text = "Tu as obéi.\n\nL'attaque a eu lieu.\nLes données ont été exfiltrées.\n\nIl reviendra."
+
+	cl.add_child(label)
+
+	# ── Fondu au noir (3s) ──
+	var tw := create_tween()
+	tw.tween_property(fade, "color:a", 1.0, 3.0).set_ease(Tween.EASE_IN)
+	await tw.finished
+
+	# ── Affiche le texte ──
+	label.modulate.a = 0.0
+	label.visible = true
+	var tw2 := create_tween()
+	tw2.tween_property(label, "modulate:a", 1.0, 2.0)
+	await tw2.finished
+
+	# ── Attend 6s puis quitte ──
+	await get_tree().create_timer(6.0).timeout
+	get_tree().quit()
 
 
 func _make_cylinder(pos: Vector3, radius: float, height: float, color: Color, emissive: bool = false, roughness: float = 0.65, metallic: float = 0.35) -> MeshInstance3D:

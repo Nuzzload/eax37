@@ -47,15 +47,6 @@ func open_app_resource(app: AppResource):
 	window_opened.emit(app.id)
 
 
-func open_app(app_id: String, app_data: Dictionary):
-	# Gardé pour compatibilité temporaire si nécessaire
-	var app = AppResource.new()
-	app.id = app_id
-	app.label = app_data.get("label", "App")
-	app.scene = load(app_data["scene"])
-	open_app_resource(app)
-
-
 func close_app(app_id: String):
 	if not open_windows.has(app_id):
 		return

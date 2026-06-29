@@ -1,0 +1,21 @@
+[2024-03-14 01:47:11] CONNECT  src=10.13.37.254:61203  dst=10.13.37.100:22  proto=tcp  user=hacker
+[2024-03-14 01:47:11] AUTH     user=hacker  method=publickey  result=ACCEPTED
+[2024-03-14 01:47:13] SESSION  cmd="ls -la /home/hacker"
+[2024-03-14 01:47:15] SESSION  cmd="cat /home/hacker/documents/password.txt"
+[2024-03-14 01:47:22] SESSION  cmd="cat /home/hacker/documents/notes.txt"
+[2024-03-14 01:47:38] SESSION  cmd="find / -name '*.key' 2>/dev/null"
+[2024-03-14 01:48:01] SESSION  cmd="cp /etc/shadow /tmp/.s"
+[2024-03-14 01:48:09] DISCONNECT  src=10.13.37.254:61203  duration=58s
+
+[2024-03-14 03:22:47] CONNECT  src=10.13.37.254:44891  dst=10.13.37.100:22  proto=tcp  user=hacker
+[2024-03-14 03:22:47] AUTH     user=hacker  method=publickey  result=ACCEPTED
+[2024-03-14 03:22:49] SESSION  cmd="cat /home/hacker/projects/keylogger.py"
+[2024-03-14 03:22:52] SESSION  cmd="chmod +x /home/hacker/projects/keylogger.py"
+[2024-03-14 03:23:17] SESSION  cmd="python3 keylogger.py 10.13.37.1"
+[2024-03-14 03:23:44] DISCONNECT  src=10.13.37.254:44891  duration=57s
+
+[2024-03-15 08:04:33] CONNECT  src=10.13.37.254:38120  dst=10.13.37.100:22  proto=tcp  user=hacker
+[2024-03-15 08:04:33] AUTH     user=hacker  method=publickey  result=ACCEPTED
+[2024-03-15 08:04:35] SESSION  cmd="echo 'Première mission. Simple.' > /home/hacker/documents/URGENT.txt"
+[2024-03-15 08:04:41] SESSION  cmd="chmod 644 /home/hacker/documents/URGENT.txt"
+[2024-03-15 08:05:02] DISCONNECT  src=10.13.37.254:38120  duration=29s

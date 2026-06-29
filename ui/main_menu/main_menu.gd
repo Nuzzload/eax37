@@ -68,6 +68,7 @@ var _skip_label:     Label
 var _title_label:    Label
 var _sub_label:      Label
 var _uptime_label:   Label
+var _transition_overlay: ColorRect
 var _boot_finished   := false
 var _skip_requested  := false
 var _boot_start_ms:  int = 0
@@ -82,6 +83,12 @@ func _ready() -> void:
 	_build_main_panel()
 	_build_settings_panel()
 	_build_glitch_layer()
+	# Overlay de transition plein écran (par-dessus tout)
+	_transition_overlay = ColorRect.new()
+	_transition_overlay.color = Color(0, 0, 0, 0)
+	_transition_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_transition_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	add_child(_transition_overlay)
 	_start_boot_sequence()
 
 
@@ -146,8 +153,8 @@ func _append_boot_line(data: Dictionary) -> void:
 		_boot_text.append_text("\n")
 	else:
 		var elapsed_ms := Time.get_ticks_msec() - _boot_start_ms
-		var secs: int = elapsed_ms / 1000
-		var ms: int   = (elapsed_ms % 1000) / 10
+		var secs: int = int(elapsed_ms / 1000.0)
+		var ms: int   = int((elapsed_ms % 1000) / 10.0)
 		var ts   := "[color=#1c3a1c][%02d:%02d][/color] " % [secs, ms]
 		_boot_text.append_text("%s[color=%s]%s[/color]\n" % [ts, hex, text])
 
@@ -563,9 +570,9 @@ func _build_bottom_bar(parent: Control) -> void:
 
 func _update_uptime() -> void:
 	if _uptime_label == null: return
-	var total: int = Time.get_ticks_msec() / 1000 + FAKE_UPTIME_BASE
-	var h: int = total / 3600
-	var m: int = (total % 3600) / 60
+	var total: int = int(Time.get_ticks_msec() / 1000.0) + FAKE_UPTIME_BASE
+	var h: int = int(total / 3600.0)
+	var m: int = int((total % 3600) / 60.0)
 	var s: int = total % 60
 	_uptime_label.text = "UPTIME %02d:%02d:%02d" % [h, m, s]
 
@@ -894,7 +901,10 @@ func _switch_to_main() -> void:
 # HANDLERS
 # ═══════════════════════════════════════════════════
 func _on_new_game_pressed() -> void:
-	_fade_out(_main_panel, 0.4, func() -> void:
+	# Fade écran complet au noir avant le chargement de scène
+	var tw := create_tween()
+	tw.tween_property(_transition_overlay, "color:a", 1.0, 0.5).set_ease(Tween.EASE_IN)
+	tw.tween_callback(func() -> void:
 		get_tree().change_scene_to_file(GAME_SCENE)
 	)
 

@@ -25,8 +25,7 @@ func _ready():
 	window_manager.window_focused.connect(_on_window_focused)
 	MissionManager.mission_completed.connect(_on_mission_completed)
 	MissionManager.mission_updated.connect(_on_mission_updated)
-	if MissionManager.has_signal("setting_changed"):
-		MissionManager.setting_changed.connect(_on_setting_changed)
+	MissionManager.setting_changed.connect(_on_setting_changed)
 	_apply_all_settings()
 	call_deferred("_build_reminder")
 func _on_setting_changed(id: String, value: Variant):
@@ -35,18 +34,21 @@ func _on_setting_changed(id: String, value: Variant):
 func _apply_all_settings():
 	if post_process:
 		post_process.visible = MissionManager.settings.get("crt_filter", true)
-func _on_mission_completed(_id: String):
+func _on_mission_completed(id: String):
 	_refresh_reminder()
 	corrupted_transition("")
+	# Notification CIPHER si ce n'est pas la fin de jeu
+	if id != "m005":
+		taskbar.show_alert("CIPHER · réponse reçue", "cipher")
 func _on_mission_updated(_id: String, _step: int):
 	_refresh_reminder()
 func _on_app_opened(app_id: String):
 	if apps_dict.has(app_id):
 		window_manager.open_app_resource(apps_dict[app_id])
+	if app_id == "cipher":
+		taskbar.alert_container.visible = false
 func _on_taskbar_app_focused(app_id: String):
 	window_manager.focus_app(app_id)
-func _on_app_closed(app_id: String):
-	window_manager.close_app(app_id)
 func _on_window_opened(app_id: String):
 	if apps_dict.has(app_id):
 		taskbar.add_app(app_id, apps_dict[app_id].label)
@@ -105,11 +107,11 @@ func _build_reminder() -> void:
 	_r_hint.offset_top = 46;   _r_hint.offset_bottom = 74
 	add_child(_r_hint)
 	_refresh_reminder()
-func _rlbl(text: String, size: int, color: Color) -> Label:
+func _rlbl(text: String, sz: int, color: Color) -> Label:
 	var l = Label.new()
 	l.text = text
 	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	l.add_theme_font_size_override("font_size", size)
+	l.add_theme_font_size_override("font_size", sz)
 	l.add_theme_color_override("font_color", color)
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	return l
@@ -117,10 +119,10 @@ func _refresh_reminder() -> void:
 	if not _r_title:
 		return
 	var hint = MissionManager.get_current_hint()
-	var show = hint != ""
-	_r_bg.visible = show; _r_bar.visible = show
-	_r_header.visible = show; _r_title.visible = show; _r_hint.visible = show
-	if show:
+	var should_show = hint != ""
+	_r_bg.visible = should_show; _r_bar.visible = should_show
+	_r_header.visible = should_show; _r_title.visible = should_show; _r_hint.visible = should_show
+	if should_show:
 		var m = MissionManager.MISSIONS.get(MissionManager.current_mission, {})
 		_r_title.text = m.get("title", "")
 		_r_hint.text = hint

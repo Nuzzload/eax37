@@ -235,14 +235,13 @@ func get_response(player_message: String, _history: Array) -> String:
 	message_count += 1
 	var msg = player_message.to_lower().strip_edges()
 
+	var category = _detect_category(msg)
+
 	# Les messages de progression ne s'appliquent que sur des messages neutres
-	var category_check = _detect_category(msg)
-	if PROGRESSION_RESPONSES.has(message_count) and category_check in ["default_cold", "default_impatient", "question_info"]:
+	if PROGRESSION_RESPONSES.has(message_count) and category in ["default_cold", "default_impatient", "question_info"]:
 		var resp: String = PROGRESSION_RESPONSES[message_count]
 		last_hacker_response = resp
 		return resp
-
-	var category = _detect_category(msg)
 
 	# Cohérence : évite contradictions directes
 	if last_topic == "refus" and category == "accord":
@@ -276,7 +275,7 @@ func _update_mood(category: String) -> void:
 			current_mood = HackerMood.SATISFIED
 		"pitie", "peur":
 			current_mood = HackerMood.COLD
-		"negocie", "identite", "defi":
+		"negocie", "identite":
 			current_mood = HackerMood.AMUSED
 		"question_info", "delai", "question_pourquoi":
 			if message_count > 4:

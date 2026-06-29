@@ -5,12 +5,14 @@ extends Node
 signal mission_completed(mission_id: String)
 signal mission_updated(mission_id: String, step: int)
 signal setting_changed(key: String, value: Variant)
+signal game_ending(ending_type: String)  # "bad" ou "good"
 
 # ── ÉTAT ──────────────────────────────────────────
 var current_mission: String = "m001"
 var current_step: int = 0
 var completed_missions: Array = []
 var cipher_unread_count: int = 2  # notifications CIPHER au démarrage
+var last_ending: String = ""
 var settings: Dictionary = {
 	"crt_filter": true,
 	"volume": 1.0,
@@ -24,8 +26,8 @@ const MISSIONS = {
 		"title": "Première livraison",
 		"steps": [
 			{
-				"type": "cipher_contains",   # le message CIPHER doit contenir...
-				"value": "Nx@2024!secure",    # mot de passe exact requis
+				"type": "cipher_contains",
+				"value": "Nx@2024!secure",
 				"hint": "Envoie le contenu de documents/password.txt dans CIPHER."
 			}
 		],
@@ -41,9 +43,46 @@ const MISSIONS = {
 				"hint": "Lance un nmap sur 10.13.37.1 et envoie le résultat dans CIPHER."
 			}
 		],
-		"reward_message": "Parfait. Je vois que le port 22 est ouvert.\nTu seras utile.",
+		"reward_message": "Parfait. Je vois que le port 22 est ouvert.\nTu seras utile.\n\nProchaine étape : j'ai besoin d'un accès plus profond à ta machine.\nEnvoie-moi le contenu de ~/.ssh/authorized_keys.",
+		"next_mission": "m003"
+	},
+	"m003": {
+		"title": "Accès SSH",
+		"steps": [
+			{
+				"type": "cipher_contains",
+				"value": "UNKNOWN_OPERATOR",
+				"hint": "Envoie le contenu de ~/.ssh/authorized_keys dans CIPHER."
+			}
+		],
+		"reward_message": "Bien reçu. Clé confirmée.\n\nMaintenant : quelqu'un d'autre observe ta machine.\nConsulte ~/logs/connection.log et dis-moi ce que tu trouves.",
+		"next_mission": "m004"
+	},
+	"m004": {
+		"title": "Analyse des traces",
+		"steps": [
+			{
+				"type": "cipher_contains",
+				"value": "10.13.37.254",
+				"hint": "Analyse ~/logs/connection.log et envoie l'IP suspecte dans CIPHER."
+			}
+		],
+		"reward_message": "...\n\nTu es plus malin que tu en as l'air.\nC'est moi. C'était toujours moi.\n\nDernière mission. Lance l'attaque sur 10.13.37.1.\nConfirme avec l'IP cible.",
+		"next_mission": "m005"
+	},
+	"m005": {
+		"title": "Fin de partie",
+		"steps": [
+			{
+				"type": "cipher_choice",
+				"value_bad": "10.13.37.1",    # obéir → bad ending
+				"value_good": "10.13.37.254",  # retourner l'attaque → good ending
+				"hint": "Envoie l'IP cible dans CIPHER : obéis, ou retourne l'attaque."
+			}
+		],
+		"reward_message": "",  # géré par cipher.gd selon le choix
 		"next_mission": ""
-	}
+	},
 }
 
 
@@ -66,6 +105,17 @@ func check_cipher_message(text: String) -> bool:
 				_complete_step()
 				return true
 
+		"cipher_choice":
+			var txt = text.to_lower().strip_edges()
+			if step["value_bad"].to_lower() in txt:
+				last_ending = "bad"
+				_complete_step()
+				return true
+			elif step["value_good"].to_lower() in txt:
+				last_ending = "good"
+				_complete_step()
+				return true
+
 	return false
 
 
@@ -84,8 +134,7 @@ func is_mission_completed(mission_id: String) -> bool:
 
 func set_setting(key: String, value: Variant) -> void:
 	settings[key] = value
-	if has_signal("setting_changed"):
-		emit_signal("setting_changed", key, value)
+	setting_changed.emit(key, value)
 
 
 # ── INTERNE ───────────────────────────────────────
@@ -109,3 +158,7 @@ func _complete_mission():
 	var next = MISSIONS[mission_id].get("next_mission", "")
 	current_mission = next
 	current_step = 0
+
+	# Déclenche la fin si c'était la dernière mission
+	if mission_id == "m005":
+		game_ending.emit(last_ending)

@@ -7,7 +7,6 @@ extends Control
 
 # FSNode depuis l'autoload FileSystem
 var current_dir
-var path_stack: Array = []
 
 var user := "hacker"
 var host := "eax37"
@@ -30,7 +29,6 @@ const COMMANDS := [
 
 func _ready():
 	current_dir = GameFS.get_home()
-	path_stack.clear()
 
 	display.bbcode_enabled = true
 	display.scroll_active = true
@@ -311,10 +309,27 @@ func autocomplete():
 			if cmd.begins_with(target):
 				matches.append(cmd)
 	else:
-		for child in current_dir.get_visible_children(true):
-			var suffix = "/" if child.is_folder else ""
-			if child.node_name.begins_with(target):
-				matches.append(child.node_name + suffix)
+		# Gère les chemins avec des séparateurs (ex: ~/.ssh/auth)
+		var slash_idx := target.rfind("/")
+		var dir_part  := ""
+		var name_part := target
+		if slash_idx >= 0:
+			dir_part  = target.substr(0, slash_idx + 1)
+			name_part = target.substr(slash_idx + 1)
+
+		var search_dir = current_dir
+		if dir_part != "":
+			var resolved = GameFS.resolve_path(dir_part.rstrip("/"), current_dir)
+			if resolved != null and resolved.is_folder:
+				search_dir = resolved
+			else:
+				search_dir = null
+
+		if search_dir != null:
+			for child in search_dir.get_visible_children(true):
+				var suffix := "/" if child.is_folder else ""
+				if child.node_name.begins_with(name_part):
+					matches.append(dir_part + child.node_name + suffix)
 
 	if matches.size() == 1:
 		parts[-1] = matches[0]
@@ -332,14 +347,6 @@ func autocomplete():
 # ─────────────────────────────────────────────────
 # HELPERS
 # ─────────────────────────────────────────────────
-func is_folder(node) -> bool:
-	return node.is_folder
-
-
-func get_entry_name(node) -> String:
-	return node.node_name
-
-
 func strip_bbcode(text: String) -> String:
 	var result := ""
 	var in_tag := false
@@ -399,8 +406,39 @@ func run_command(cmd: String):
 				print_line("chmod: changed permissions of '%s'" % args[1], "gray")
 			else:
 				print_line("Usage: chmod <mode> <file>", "red")
+		"python3", "python":
+			if args.is_empty():
+				print_line("Python 3.11.4 (main, Jul 5 2023, 09:00:00)", "gray")
+				print_line("Type \"exit()\" to quit.", "gray")
+				await get_tree().create_timer(0.5).timeout
+				print_line(">>> ", "lightgreen")
+				print_line("KeyboardInterrupt", "red")
+			else:
+				var script_path := args[0]
+				var script_node = GameFS.resolve_path(script_path, current_dir)
+				if script_node == null or script_node.is_folder:
+					print_line("python3: can't open file '%s': No such file or directory" % script_path, "red")
+				else:
+					print_line("[*] Exécution de %s..." % script_path, "gray")
+					await get_tree().create_timer(0.5).timeout
+					print_line("Traceback (most recent call last):", "red")
+					print_line("  File \"%s\", line 1" % script_path, "red")
+					print_line("ModuleNotFoundError: No module named 'pynput'", "red")
 		_:
-			print_line("bash: %s: command not found" % command, "red")
+			if command.begins_with("./"):
+				var script_name := command.substr(2)
+				var script_node = GameFS.resolve_path(script_name, current_dir)
+				if script_node == null:
+					print_line("bash: %s: No such file or directory" % command, "red")
+				elif script_node.is_folder:
+					print_line("bash: %s: Is a directory" % command, "red")
+				elif script_name == "scan.sh":
+					await _run_scan_sh(args)
+				else:
+					print_line("bash: %s: Permission denied" % command, "red")
+					print_line("Hint: chmod +x %s" % script_name, "gray")
+			else:
+				print_line("bash: %s: command not found" % command, "red")
 
 
 func _close_app():
@@ -501,19 +539,16 @@ func cmd_ls(args: Array[String]):
 func cmd_cd(args: Array[String]):
 	if args.is_empty():
 		current_dir = GameFS.get_home()
-		path_stack.clear()
 		return
 
 	var dir := args[0]
 
-	if dir == "/" :
+	if dir == "/":
 		current_dir = GameFS.get_root()
-		path_stack.clear()
 		return
 
 	if dir == "~":
 		current_dir = GameFS.get_home()
-		path_stack.clear()
 		return
 
 	var node = GameFS.resolve_path(dir, current_dir)
@@ -524,22 +559,7 @@ func cmd_cd(args: Array[String]):
 		print_line("cd: not a directory: %s" % dir, "red")
 		return
 
-	# Met à jour path_stack en remontant depuis le nœud
 	current_dir = node
-	_rebuild_path_stack()
-
-
-func _rebuild_path_stack():
-	# Reconstruit path_stack depuis current_dir
-	path_stack.clear()
-	var node = current_dir
-	var root = GameFS.get_root()
-	while node != null and node != root:
-		path_stack.insert(0, node)
-		node = node.parent
-	# On enlève current_dir du stack (il n'y est pas dans l'original)
-	if not path_stack.is_empty() and path_stack[-1] == current_dir:
-		path_stack.pop_back()
 
 
 func cmd_pwd():
@@ -581,16 +601,38 @@ func cmd_tree(node, prefix: String):
 
 func cmd_grep(args: Array[String]):
 	if args.is_empty():
-		print_line("Usage: grep <pattern> [file]", "red")
+		print_line("Usage: grep [-r] <pattern> [path]", "red")
 		return
-	var keyword  := args[0]
-	var filename := args[1] if args.size() >= 2 else ""
 
-	if filename != "":
-		var node = GameFS.resolve_path(filename, current_dir)
-		if node == null or node.is_folder:
-			print_line("grep: %s: No such file" % filename, "red")
+	var recursive := false
+	var filtered: Array[String] = []
+	for a in args:
+		if a == "-r" or a == "-R" or a == "-ri" or a == "-ir":
+			recursive = true
+		else:
+			filtered.append(a)
+
+	var keyword  := filtered[0] if filtered.size() >= 1 else ""
+	var path_arg := filtered[1] if filtered.size() >= 2 else ""
+
+	if keyword.is_empty():
+		print_line("Usage: grep [-r] <pattern> [path]", "red")
+		return
+
+	if path_arg != "":
+		var node = GameFS.resolve_path(path_arg, current_dir)
+		if node == null:
+			print_line("grep: %s: No such file or directory" % path_arg, "red")
 			return
+		if node.is_folder:
+			if recursive:
+				var found := false
+				_grep_recursive(node, keyword, path_arg, found)
+				return
+			else:
+				print_line("grep: %s: Is a directory (use -r)" % path_arg, "red")
+				return
+		# Fichier simple
 		var hit := false
 		for line in node.get_content().split("\n"):
 			if keyword in line:
@@ -600,8 +642,13 @@ func cmd_grep(args: Array[String]):
 			print_line("(no match)", "gray")
 		return
 
+	# Pas de path : recherche dans le répertoire courant
+	if recursive:
+		_grep_recursive(current_dir, keyword, ".", false)
+		return
+
 	var found := false
-	for child in current_dir.get_visible_children():
+	for child in current_dir.get_visible_children(true):
 		if not child.is_folder:
 			var content: String = child.get_content()
 			if keyword in content:
@@ -613,16 +660,30 @@ func cmd_grep(args: Array[String]):
 		print_line("grep: no match for '%s'" % keyword, "gray")
 
 
+func _grep_recursive(node, keyword: String, display_path: String, _found: bool) -> void:
+	for child in node.get_visible_children(true):
+		var child_path: String = display_path.rstrip("/") + "/" + child.node_name
+		if child.is_folder:
+			_grep_recursive(child, keyword, child_path, _found)
+		else:
+			var content: String = child.get_content()
+			if keyword in content:
+				for line in content.split("\n"):
+					if keyword in line:
+						print_line("[color=yellow]%s[/color]: %s" % [child_path, line.replace(keyword, "[color=red]%s[/color]" % keyword)])
+
+
 func cmd_nmap(args: Array[String]):
 	if args.is_empty():
 		print_line("Usage: nmap <target_ip>", "red")
 		return
 	interrupted = false
 	is_typing   = true
+	var target := args[0]
 	print_line("Starting Nmap 7.80 at 2026-05-01 22:14", "gray")
 	await get_tree().create_timer(0.5).timeout
 	if interrupted: return
-	print_line("Scanning %s..." % args[0], "gray")
+	print_line("Scanning %s..." % target, "gray")
 	for _i in range(10):
 		await get_tree().create_timer(0.15).timeout
 		if interrupted: return
@@ -631,13 +692,33 @@ func cmd_nmap(args: Array[String]):
 	display.append_text("\n")
 	await get_tree().create_timer(0.3).timeout
 	if interrupted: return
-	print_line("Nmap scan report for %s" % args[0], "white")
-	print_line("Host is up (0.0021s latency).", "gray")
-	print_line("PORT     STATE  SERVICE", "yellow")
-	print_line("22/tcp   open   ssh", "lightgreen")
-	print_line("80/tcp   open   http", "lightgreen")
-	print_line("443/tcp  open   https", "lightgreen")
-	print_line("Nmap done: 1 IP address scanned in 2.54 seconds", "gray")
+
+	if target == "10.13.37.254":
+		print_line("Nmap scan report for %s" % target, "white")
+		print_line("Host is up (0.0004s latency).", "gray")
+		print_line("PORT     STATE   SERVICE    VERSION", "yellow")
+		print_line("22/tcp   open    ssh        OpenSSH 9.3", "lightgreen")
+		print_line("443/tcp  open    https      nginx 1.24", "lightgreen")
+		print_line("4444/tcp open    krb5-sec   unknown", "orange")
+		print_line("8080/tcp filtered http      no-response", "gray")
+		print_line("OS: Linux 6.6 (Arch Linux)", "gray")
+		print_line("MAC: ▓▓:▓▓:▓▓:▓▓:▓▓:▓▓  (Unknown)", "gray")
+		print_line("WARNING: Host appears to be running countermeasures.", "#ef4444")
+		print_line("Nmap done: 1 IP address scanned in 4.11 seconds", "gray")
+		if capture_mode:
+			capture_buffer.append("22/tcp   open    ssh")
+			capture_buffer.append("10.13.37.254")
+	else:
+		print_line("Nmap scan report for %s" % target, "white")
+		print_line("Host is up (0.0021s latency).", "gray")
+		print_line("PORT     STATE  SERVICE", "yellow")
+		print_line("22/tcp   open   ssh", "lightgreen")
+		print_line("80/tcp   open   http", "lightgreen")
+		print_line("443/tcp  open   https", "lightgreen")
+		print_line("Nmap done: 1 IP address scanned in 2.54 seconds", "gray")
+		if capture_mode:
+			capture_buffer.append("22/tcp   open   ssh")
+
 	is_typing = false
 
 
@@ -645,12 +726,34 @@ func cmd_ssh(args: Array[String]):
 	if args.is_empty():
 		print_line("Usage: ssh [user@]host", "red")
 		return
+	var target: String = args[0]
 	interrupted = false
 	is_typing   = true
-	print_line("Connecting to %s..." % args[0], "gray")
-	await get_tree().create_timer(1.5).timeout
+	print_line("Connecting to %s..." % target, "gray")
+	await get_tree().create_timer(1.0).timeout
 	if interrupted: return
-	print_line("ssh: connect to host %s port 22: Connection refused" % args[0], "red")
+
+	if "10.13.37.254" in target:
+		print_line("Connection established.", "lightgreen")
+		await get_tree().create_timer(0.6).timeout
+		if interrupted: return
+		print_line("Authenticating...", "gray")
+		await get_tree().create_timer(0.8).timeout
+		if interrupted: return
+		print_line("", "")
+		print_line("Je vois ce que tu fais.", "#ef4444")
+		await get_tree().create_timer(0.5).timeout
+		if interrupted: return
+		print_line("Ferme cette session.", "#ef4444")
+		await get_tree().create_timer(0.4).timeout
+		if interrupted: return
+		print_line("", "")
+		print_line("Connection closed by remote host.", "gray")
+	else:
+		await get_tree().create_timer(0.5).timeout
+		if interrupted: return
+		print_line("ssh: connect to host %s port 22: Connection refused" % target, "red")
+
 	is_typing = false
 
 
@@ -753,7 +856,7 @@ func cmd_man(args: Array[String]):
 		"rm":    "rm [-r] NAME\n  Remove files or directories.",
 		"mkdir": "mkdir DIR\n  Create directory.",
 		"touch": "touch FILE\n  Create empty file.",
-		"find":  "find NAME\n  Search files recursively.",
+		"find":  "find [path] [-name PATTERN]\n  Search files recursively.\n  Supports wildcards: *.txt",
 		"nmap":  "nmap TARGET\n  Network scanner. Ctrl+C to stop.",
 		"ssh":   "ssh [user@]HOST\n  Remote login.",
 	}
@@ -810,14 +913,39 @@ func cmd_tail(args: Array[String]):
 
 
 func cmd_find(args: Array[String]):
-	var pattern := args[0] if not args.is_empty() else ""
-	_find_recursive(GameFS.get_root(), pattern, "")
+	# Syntaxe : find [path] [-name pattern] [pattern_positional]
+	var search_root = GameFS.get_root()
+	var root_display := ""
+	var pattern := ""
+
+	var i := 0
+	while i < args.size():
+		var a := args[i]
+		if a == "-name" and i + 1 < args.size():
+			i += 1
+			pattern = args[i]
+		elif not a.begins_with("-"):
+			# Premier arg non-flag = chemin de départ OU pattern
+			var maybe_path = GameFS.resolve_path(a, current_dir)
+			if maybe_path != null and maybe_path.is_folder:
+				search_root = maybe_path
+				root_display = a.rstrip("/")
+			else:
+				pattern = a
+		i += 1
+
+	_find_recursive(search_root, pattern, root_display)
 
 
 func _find_recursive(node, pattern: String, path: String):
 	for child in node.get_visible_children(true):
-		var cpath: String = path + "/" + child.node_name
-		if pattern.is_empty() or pattern in child.node_name:
+		var cpath: String = (path + "/" if path != "" else "/") + child.node_name
+		var matches: bool = pattern.is_empty() or (pattern in child.node_name)
+		# Support wildcards simples : *.ext
+		if not matches and pattern.begins_with("*"):
+			var suffix := pattern.substr(1)
+			matches = child.node_name.ends_with(suffix)
+		if matches:
 			print_line(cpath, "lightgreen")
 		if child.is_folder:
 			_find_recursive(child, pattern, cpath)
@@ -859,3 +987,48 @@ func print_line(msg: String, color: String = "white"):
 
 func scroll_bottom():
 	display.scroll_to_line(display.get_line_count() - 1)
+
+
+func _run_scan_sh(extra_args: Array[String]) -> void:
+	interrupted = false
+	is_typing   = true
+	var target_range := extra_args[0] if extra_args.size() > 0 else "10.13.37.0/24"
+	print_line("[*] Scan de %s" % target_range, "gray")
+	print_line("[*] Résultats -> scan_%s.txt" % Time.get_date_string_from_system().replace("-", ""), "gray")
+	await get_tree().create_timer(0.4).timeout
+	if interrupted: return
+
+	print_line("Starting Nmap 7.80...", "gray")
+	for _i in range(8):
+		await get_tree().create_timer(0.18).timeout
+		if interrupted: return
+		display.append_text("[color=gray].[/color]")
+		scroll_bottom()
+	display.append_text("\n")
+
+	await get_tree().create_timer(0.3).timeout
+	if interrupted: return
+
+	var hosts := [
+		["10.13.37.1",   "up", [["22/tcp", "open", "ssh"], ["80/tcp", "open", "http"], ["443/tcp", "open", "https"]], ""],
+		["10.13.37.10",  "up", [["22/tcp", "open", "ssh"]], ""],
+		["10.13.37.42",  "up", [["80/tcp", "open", "http"], ["8080/tcp", "open", "http-proxy"]], ""],
+		["10.13.37.100", "up", [["22/tcp", "open", "ssh"]], ""],
+		["10.13.37.254", "up", [["22/tcp", "open", "ssh"], ["443/tcp", "open", "https"], ["4444/tcp", "open", "unknown"]], "⚠ COUNTERMEASURES DETECTED"],
+	]
+
+	for host_data in hosts:
+		if interrupted: return
+		print_line("", "")
+		print_line("Nmap scan report for %s" % host_data[0], "white")
+		print_line("Host is up.", "gray")
+		for port_info in host_data[2]:
+			var color := "lightgreen" if port_info[1] == "open" else "gray"
+			print_line("  %-10s %-8s %s" % [port_info[0], port_info[1], port_info[2]], color)
+		if host_data[3] != "":
+			print_line("  %s" % host_data[3], "#ef4444")
+		await get_tree().create_timer(0.2).timeout
+
+	print_line("", "")
+	print_line("[+] Terminé. 5 hôtes actifs sur %s" % target_range, "lightgreen")
+	is_typing = false

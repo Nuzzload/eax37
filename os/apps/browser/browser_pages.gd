@@ -50,6 +50,8 @@ static func get_page(url: String) -> String:
 			return page_thread_intel_2()
 		HOME + "/t/intel/3":
 			return page_thread_intel_3()
+		HOME + "/t/intel/4":
+			return page_thread_intel_4()
 		HOME + "/t/comms/1":
 			return page_thread_comms_1()
 		HOME + "/t/comms/2":
@@ -251,6 +253,10 @@ static func page_board_intel() -> String:
 		+ "  [url=" + HOME + "/t/intel/3][b][color=#3b82f6][LEAK][/color]"
 		+ " [color=#e0e0f0]/etc/passwd — comptes actifs EAX37[/color][/b][/url]\n"
 		+ "  [color=#484866]    v0id_run · il y a 8h · 5 rép.[/color]\n\n"
+
+		+ "  [url=" + HOME + "/t/intel/4][b][color=#3b82f6][OPSEC][/color]"
+		+ " [color=#e0e0f0]Erreur OPSEC — fuite métadonnées session TOR[/color][/b][/url]\n"
+		+ "  [color=#484866]    z3r0_tr4ce · il y a 22min · 2 rép.[/color]\n\n"
 
 		+ _sep()
 		+ "[color=#484866]  31 fils · Page 1/4[/color]\n"
@@ -530,6 +536,37 @@ static func page_thread_intel_3() -> String:
 		+ _post("proxy_null", "#22c55e", "il y a 3h",
 			"On sait que quelqu'un a déjà le contrat sur cette cible.\n"
 			+ "S'il réussit, il partagera peut-être les accès.", "proxy_null")
+		+ _sep()
+	)
+
+
+static func page_thread_intel_4() -> String:
+	return (
+		_header("r/intel › Erreur OPSEC — fuite métadonnées")
+		+ _nav()
+		+ "[url=" + HOME + "/r/intel][color=#a855f7]← retour r/intel[/color][/url]\n\n"
+		+ "[b][color=#3b82f6][OPSEC][/color] [color=#e0e0f0]Erreur OPSEC — fuite métadonnées session TOR[/color][/b]\n"
+		+ "[url=" + HOME + "/u/z3r0_tr4ce][color=#b0b0cc]z3r0_tr4ce[/color][/url]"
+		+ "[color=#484866] · il y a 22min · r/intel[/color]\n"
+		+ _sep()
+		+ "[color=#b0b0cc]Un des opérateurs actifs sur la cible EAX37 a laissé filtrer des métadonnées de session.\n"
+		+ "J'ai capturé un paquet de handshake TLS qui n'aurait pas dû passer.\n\n"
+		+ "[color=#ef4444]Extrait du dump réseau (couche 4) :[/color]\n\n"
+		+ "[color=#484866]Timestamp     : 2024-03-15 08:04:31 UTC\n"
+		+ "Src IP        : [color=#ef4444]10.13.37.254[/color]    Port : 38120\n"
+		+ "Dst IP        : 10.13.37.100    Port : 22\n"
+		+ "Protocol      : SSH-2.0-OpenSSH_9.3\n"
+		+ "Auth-Method   : publickey\n"
+		+ "Fingerprint   : SHA256:▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓[/color]\n\n"
+		+ "IP source visible. Exit node TOR non anonymisé.\n"
+		+ "Soit c'est une erreur, soit quelqu'un teste sa propre cible depuis son réseau réel.[/color]\n\n"
+		+ _sep()
+		+ _post("ghost_proc", "#22c55e", "il y a 18min",
+			"10.13.37.254 — ça ressemble à une IP locale. Réseau privé.\n"
+			+ "Si c'est l'opérateur, il a fait une sacrée erreur.", "ghost_proc")
+		+ _post("proxy_null", "#22c55e", "il y a 11min",
+			"Je le connais pas mais c'est du niveau débutant comme erreur.\n"
+			+ "Cette IP est dans les logs de la cible depuis semaines.", "proxy_null")
 		+ _sep()
 	)
 

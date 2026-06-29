@@ -117,15 +117,6 @@ func on_drag_end():
 	is_dragging = false
 
 
-func is_cursor_on_titlebar(cursor_pos: Vector2) -> bool:
-	var local = cursor_pos - position
-	return Rect2(Vector2.ZERO, Vector2(size.x, TITLEBAR_HEIGHT)).has_point(local)
-
-
-func is_cursor_on_window(cursor_pos: Vector2) -> bool:
-	return Rect2(position, size).has_point(cursor_pos)
-
-
 func _apply_style():
 	var style = StyleBoxFlat.new()
 	style.bg_color = Color("#111116")

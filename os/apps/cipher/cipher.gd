@@ -33,6 +33,7 @@ const INITIAL_MESSAGES = [
 var is_typing := false
 var cinematic_mode := false
 var _scripted_cancelled := false
+var _ending_triggered := false
 
 const SCRIPTED_MESSAGES = [
 	{ "delay": 999.0,  "text": "Tu es là ?" },
@@ -48,6 +49,7 @@ func _ready():
 	_load_initial_messages()
 	message_input.gui_input.connect(_on_input_event)
 	send_button.pressed.connect(_send_message)
+	MissionManager.game_ending.connect(_on_game_ending)
 	await get_tree().process_frame
 	_scroll_to_bottom()
 	if not cinematic_mode:
@@ -274,10 +276,13 @@ func _send_message():
 
 	# Vérifie si le message complète une mission
 	if MissionManager.check_cipher_message(text):
+		# m005 déclenche game_ending → géré par _on_game_ending, pas de reward ici
+		if MissionManager.completed_missions.has("m005"):
+			return
 		# Petit délai puis message de reward
 		await get_tree().create_timer(1.2).timeout
-		var t2 = Time.get_time_dict_from_system()
-		var reward_time = "%02d:%02d" % [t2["hour"], t2["minute"]]
+		var t_reward = Time.get_time_dict_from_system()
+		var reward_time = "%02d:%02d" % [t_reward["hour"], t_reward["minute"]]
 		var mission = MissionManager.MISSIONS.get(MissionManager.completed_missions[-1] if not MissionManager.completed_missions.is_empty() else "", {})
 		var reward_msg = mission.get("reward_message", "Bien reçu.")
 		_add_message("UNKNOWN_▓▓▓", reward_time, reward_msg, false)
@@ -289,7 +294,6 @@ func _send_message():
 	await get_tree().create_timer(0.6 + randf() * 0.8).timeout
 
 	# Détecte si le message mérite un glitch avant la réponse
-	var detected_topic = HackerBrain.last_topic  # on lit avant get_response
 	var reply = HackerBrain.get_response(text, [])
 	var new_topic = HackerBrain.last_topic
 
@@ -352,6 +356,59 @@ func _start_scripted_messages():
 		_scroll_to_bottom()
 
 
+func _on_game_ending(ending_type: String) -> void:
+	if _ending_triggered:
+		return
+	_ending_triggered = true
+	_cancel_scripted_messages()
+	message_input.editable = false
+	send_button.disabled = true
+
+	await get_tree().create_timer(1.5).timeout
+
+	var t = Time.get_time_dict_from_system()
+	var ts = "%02d:%02d" % [t["hour"], t["minute"]]
+
+	if ending_type == "good":
+		_add_typing_indicator()
+		await get_tree().create_timer(2.0).timeout
+		_remove_typing_indicator()
+		_add_message("UNKNOWN_▓▓▓", ts, "...", false)
+		await get_tree().create_timer(2.5).timeout
+		t = Time.get_time_dict_from_system()
+		ts = "%02d:%02d" % [t["hour"], t["minute"]]
+		_add_typing_indicator()
+		await get_tree().create_timer(1.5).timeout
+		_remove_typing_indicator()
+		_add_message("UNKNOWN_▓▓▓", ts, "Tu viens de faire une erreur.", false)
+		await get_tree().create_timer(3.0).timeout
+		t = Time.get_time_dict_from_system()
+		ts = "%02d:%02d" % [t["hour"], t["minute"]]
+		_add_message("UNKNOWN_▓▓▓", ts, "On se reverra.", false)
+		_scroll_to_bottom()
+		await get_tree().create_timer(4.0).timeout
+		GlitchManager.trigger(1.5, 2.0)
+	else:
+		_add_typing_indicator()
+		await get_tree().create_timer(1.8).timeout
+		_remove_typing_indicator()
+		_add_message("UNKNOWN_▓▓▓", ts, "Bien.", false)
+		await get_tree().create_timer(2.0).timeout
+		t = Time.get_time_dict_from_system()
+		ts = "%02d:%02d" % [t["hour"], t["minute"]]
+		_add_message("UNKNOWN_▓▓▓", ts, "Tu as fait le bon choix.\nPour tout le monde.", false)
+		_scroll_to_bottom()
+		await get_tree().create_timer(2.5).timeout
+		t = Time.get_time_dict_from_system()
+		ts = "%02d:%02d" % [t["hour"], t["minute"]]
+		_add_message("UNKNOWN_▓▓▓", ts, "Tu peux dormir tranquille.\nPour l'instant.", false)
+		_scroll_to_bottom()
+		await get_tree().create_timer(5.0).timeout
+		GlitchManager.trigger(0.8, 1.5)
+
+	# room_scene.gd gère le fondu final via game_ending signal
+
+
 func _scroll_to_bottom():
 	await get_tree().process_frame
-	messages_scroll.scroll_vertical = messages_scroll.get_v_scroll_bar().max_value
+	messages_scroll.scroll_vertical = int(messages_scroll.get_v_scroll_bar().max_value)
