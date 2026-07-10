@@ -7,7 +7,6 @@ extends Control
 
 # FSNode depuis l'autoload FileSystem
 var current_dir
-var path_stack: Array = []
 
 var user := "hacker"
 var host := "eax37"
@@ -20,17 +19,27 @@ var interrupted := false
 var capture_mode := false
 var capture_buffer: Array[String] = []
 
+var ssh_connected := false
+var ssh_host := ""
+var ssh_user := ""
+var remote_path := "/home/admin"
+var _ssh_password_mode := false
+var _ssh_password_host := ""
+var _ssh_password_user := ""
+var _ssh_password_attempts := 0
+var _tar_extracted: Dictionary = {}  # fichiers extraits à la volée
+var _tar_dirs: Dictionary = {}       # répertoires extraits à la volée
+
 const COMMANDS := [
 	"cat", "cd", "chmod", "clear", "cp", "date", "echo", "exit",
-	"find", "grep", "head", "help", "history", "hostname", "kill",
-	"ls", "man", "mkdir", "mv", "nmap", "ps", "pwd", "rm",
-	"ssh", "sudo", "tail", "touch", "tree", "uname", "wc", "whoami"
+	"find", "grep", "hashcat", "head", "help", "history", "hostname", "hydra", "kill",
+	"ls", "man", "md5sum", "mkdir", "mv", "nmap", "ps", "pwd", "rm",
+	"ssh", "sudo", "tail", "touch", "tree", "uname", "vpn", "wc", "whoami"
 ]
 
 
 func _ready():
 	current_dir = GameFS.get_home()
-	path_stack.clear()
 
 	display.bbcode_enabled = true
 	display.scroll_active = true
@@ -116,7 +125,13 @@ func get_terminal_path() -> String:
 
 
 func update_prompt_label():
-	prompt_label.text = "%s@%s:%s$ " % [user, host, get_terminal_path()]
+	if ssh_connected:
+		var dp := "~" if remote_path == "/home/admin" else remote_path
+		prompt_label.text = "%s@nexcorp-srv-01:%s$ " % [ssh_user, dp]
+		prompt_label.add_theme_color_override("font_color", Color("#44aaff"))
+	else:
+		prompt_label.text = "%s@%s:%s$ " % [user, host, get_terminal_path()]
+		prompt_label.add_theme_color_override("font_color", Color("#22cc66"))
 
 
 func print_welcome():
@@ -132,6 +147,15 @@ func print_welcome():
 # ─────────────────────────────────────────────────
 func _input(event: InputEvent):
 	if event is InputEventMouseButton and event.pressed:
+		match event.button_index:
+			MOUSE_BUTTON_WHEEL_UP:
+				display.get_v_scroll_bar().value -= 80
+				get_viewport().set_input_as_handled()
+				return
+			MOUSE_BUTTON_WHEEL_DOWN:
+				display.get_v_scroll_bar().value += 80
+				get_viewport().set_input_as_handled()
+				return
 		input.grab_focus()
 
 
@@ -179,11 +203,13 @@ func _on_input_event(event: InputEvent):
 
 	match event.keycode:
 		KEY_UP:
+			get_viewport().set_input_as_handled()
 			if not history.is_empty():
 				history_index = max(0, history_index - 1)
 				input.text = history[history_index]
 				input.caret_column = input.text.length()
 		KEY_DOWN:
+			get_viewport().set_input_as_handled()
 			if not history.is_empty():
 				history_index = min(history.size(), history_index + 1)
 				input.text = "" if history_index == history.size() else history[history_index]
@@ -199,16 +225,34 @@ func _on_input_event(event: InputEvent):
 func _on_command(cmd: String):
 	if is_typing:
 		return
+	if _ssh_password_mode:
+		_ssh_password_mode = false
+		input.secret = false
+		display.append_text("\n")
+		scroll_bottom()
+		input.text = ""
+		input.grab_focus()
+		_handle_ssh_password(cmd.strip_edges())
+		return
 	var command_text := cmd.strip_edges()
 
-	display.append_text(
-		"[color=lime]%s@%s[/color][color=white]:[/color][color=deepskyblue]%s[/color][color=white]$ %s[/color]\n"
-		% [user, host, get_terminal_path(), command_text]
-	)
+	if ssh_connected:
+		var dp := "~" if remote_path == "/home/admin" else remote_path
+		display.append_text(
+			"[color=#44aaff]%s@nexcorp-srv-01[/color][color=white]:[/color][color=deepskyblue]%s[/color][color=white]$ %s[/color]\n"
+			% [ssh_user, dp, command_text]
+		)
+	else:
+		display.append_text(
+			"[color=lime]%s@%s[/color][color=white]:[/color][color=deepskyblue]%s[/color][color=white]$ %s[/color]\n"
+			% [user, host, get_terminal_path(), command_text]
+		)
 
 	if command_text != "":
 		history.append(command_text)
 		history_index = history.size()
+		if not command_text.begins_with("ssh "):
+			MissionManager.check_terminal_command(command_text)
 
 	if ";" in command_text:
 		for sub in command_text.split(";"):
@@ -311,10 +355,19 @@ func autocomplete():
 			if cmd.begins_with(target):
 				matches.append(cmd)
 	else:
-		for child in current_dir.get_visible_children(true):
-			var suffix = "/" if child.is_folder else ""
-			if child.node_name.begins_with(target):
-				matches.append(child.node_name + suffix)
+		if ssh_connected:
+			var base: String = "" if remote_path == "/" else remote_path
+			var entries: Array = REMOTE_FS.get(remote_path, _tar_dirs.get(remote_path, []))
+			for e in entries:
+				var full: String = base + "/" + e
+				var is_dir := REMOTE_FS.has(full) or _tar_dirs.has(full)
+				if e.begins_with(target):
+					matches.append(e + ("/" if is_dir else ""))
+		else:
+			for child in current_dir.get_visible_children(true):
+				var suffix = "/" if child.is_folder else ""
+				if child.node_name.begins_with(target):
+					matches.append(child.node_name + suffix)
 
 	if matches.size() == 1:
 		parts[-1] = matches[0]
@@ -362,6 +415,10 @@ func run_command(cmd: String):
 	for i in range(1, parts.size()):
 		args.append(parts[i])
 
+	if ssh_connected:
+		run_remote_command(command, args)
+		return
+
 	match command:
 		"help":     cmd_help()
 		"ls":       cmd_ls(args)
@@ -392,6 +449,11 @@ func run_command(cmd: String):
 		"find":     cmd_find(args)
 		"ps":       cmd_ps()
 		"kill":     cmd_kill(args)
+		"md5sum":   cmd_md5sum(args)
+		"hydra":    cmd_hydra(args)
+		"hashcat":  cmd_hashcat(args)
+		"vpn":
+			cmd_vpn(args)
 		"sudo":
 			print_line("%s is not in the sudoers file." % user, "red")
 		"chmod":
@@ -429,7 +491,10 @@ func cmd_help():
 		["mv <src> <dst>",   "Move / rename"],
 		["cp <src> <dst>",   "Copy file"],
 		["nmap <ip>",        "Scan network target"],
+		["hydra -l <user>",  "Brute force SSH credentials (online)"],
+		["hashcat <hash>",   "Crack password hash (offline dictionary)"],
 		["ssh <host>",       "Connect to remote host"],
+		["vpn connect <profile> <pass>", "Connect to VPN"],
 		["echo <text>",      "Print text"],
 		["history",          "Show command history"],
 		["date",             "Show current date/time"],
@@ -500,20 +565,17 @@ func cmd_ls(args: Array[String]):
 
 func cmd_cd(args: Array[String]):
 	if args.is_empty():
-		current_dir = GameFS.get_root()
-		path_stack.clear()
+		current_dir = GameFS.get_home()
 		return
 
 	var dir := args[0]
 
-	if dir == "/" :
+	if dir == "/":
 		current_dir = GameFS.get_root()
-		path_stack.clear()
 		return
 
 	if dir == "~":
 		current_dir = GameFS.get_home()
-		path_stack.clear()
 		return
 
 	var node = GameFS.resolve_path(dir, current_dir)
@@ -524,22 +586,7 @@ func cmd_cd(args: Array[String]):
 		print_line("cd: not a directory: %s" % dir, "red")
 		return
 
-	# Met à jour path_stack en remontant depuis le nœud
 	current_dir = node
-	_rebuild_path_stack()
-
-
-func _rebuild_path_stack():
-	# Reconstruit path_stack depuis current_dir
-	path_stack.clear()
-	var node = current_dir
-	var root = GameFS.get_root()
-	while node != null and node != root:
-		path_stack.insert(0, node)
-		node = node.parent
-	# On enlève current_dir du stack (il n'y est pas dans l'original)
-	if not path_stack.is_empty() and path_stack[-1] == current_dir:
-		path_stack.pop_back()
 
 
 func cmd_pwd():
@@ -617,6 +664,19 @@ func cmd_nmap(args: Array[String]):
 	if args.is_empty():
 		print_line("Usage: nmap <target_ip>", "red")
 		return
+	# Bloquer les IP internes NexCorp sans VPN
+	var target = args[0]
+	if target.begins_with("10.13.37") and not MissionManager.vpn_connected:
+		interrupted = false
+		is_typing = true
+		print_line("Starting Nmap 7.80 at 2026-05-01 22:14", "gray")
+		await get_tree().create_timer(0.8).timeout
+		print_line("Scanning %s..." % target, "gray")
+		await get_tree().create_timer(1.5).timeout
+		print_line("Note: Host seems down. If it is really up, but blocking our ping probes, try -Pn", "red")
+		print_line("Nmap done: 1 IP address (0 hosts up)", "gray")
+		is_typing = false
+		return
 	interrupted = false
 	is_typing   = true
 	print_line("Starting Nmap 7.80 at 2026-05-01 22:14", "gray")
@@ -639,19 +699,102 @@ func cmd_nmap(args: Array[String]):
 	print_line("443/tcp  open   https", "lightgreen")
 	print_line("Nmap done: 1 IP address scanned in 2.54 seconds", "gray")
 	is_typing = false
+	MissionManager.show_tech_note("nmap", "NMAP — Network Mapper",
+		"Outil open-source de reconnaissance réseau.\n" +
+		"Identifie hôtes actifs, ports ouverts et services exposés.\n" +
+		"Port 22 ouvert → SSH actif : vecteur d'entrée potentiel.\n\n" +
+		"Phase de reconnaissance : cartographier avant d'attaquer.")
 
 
 func cmd_ssh(args: Array[String]):
 	if args.is_empty():
 		print_line("Usage: ssh [user@]host", "red")
 		return
+	var target := args[0]
+	var r_user := "admin"
+	var r_host := target
+	if "@" in target:
+		var sp := target.split("@", true, 1)
+		r_user = sp[0]
+		r_host = sp[1]
+	# IP internes bloquées sans VPN
+	if r_host.begins_with("10.13.37") and not MissionManager.vpn_connected:
+		interrupted = false
+		is_typing = true
+		print_line("Connecting to %s..." % r_host, "gray")
+		await get_tree().create_timer(1.5).timeout
+		if interrupted: is_typing = false; return
+		print_line("ssh: connect to host %s port 22: Connection refused" % r_host, "red")
+		is_typing = false
+		return
+	# Serveur NexCorp — connexion réussie
+	if r_host == "10.13.37.1":
+		interrupted = false
+		is_typing = true
+		print_line("Connecting to %s..." % r_host, "gray")
+		await get_tree().create_timer(0.7).timeout
+		if interrupted: is_typing = false; return
+		print_line("Warning: Permanently added '10.13.37.1' (ED25519) to known hosts.", "yellow")
+		await get_tree().create_timer(0.5).timeout
+		if interrupted: is_typing = false; return
+		is_typing = false
+		_ssh_password_host = r_host
+		_ssh_password_user = r_user
+		_ssh_password_attempts = 0
+		_ssh_password_mode = true
+		input.secret = true
+		display.append_text("%s@%s's password: " % [r_user, r_host])
+		scroll_bottom()
+		input.grab_focus()
+		return
+	# Tout autre hôte — refusé
 	interrupted = false
-	is_typing   = true
-	print_line("Connecting to %s..." % args[0], "gray")
+	is_typing = true
+	print_line("Connecting to %s..." % r_host, "gray")
 	await get_tree().create_timer(1.5).timeout
-	if interrupted: return
-	print_line("ssh: connect to host %s port 22: Connection refused" % args[0], "red")
+	if interrupted: is_typing = false; return
+	print_line("ssh: connect to host %s port 22: Connection refused" % r_host, "red")
 	is_typing = false
+
+
+func _handle_ssh_password(password: String):
+	if password == "adm1n_p@ss":
+		_ssh_password_attempts = 0
+		is_typing = true
+		await get_tree().create_timer(0.4).timeout
+		display.append_text("[color=#44aaff]Connected to nexcorp-srv-01 as %s[/color]\n" % _ssh_password_user)
+		print_line("", "")
+		print_line("  NexCorp Internal Server — Authorized Access Only", "yellow")
+		print_line("  Unauthorized access is monitored and prosecuted.", "#cc4444")
+		print_line("", "")
+		print_line("Last login: Sun Jun 28 23:58:03 2026 from 192.168.1.42", "gray")
+		print_line("", "")
+		is_typing = false
+		ssh_connected = true
+		ssh_host = _ssh_password_host
+		ssh_user = _ssh_password_user
+		remote_path = "/home/admin"
+		update_prompt_label()
+		MissionManager.check_terminal_command("ssh %s@%s" % [_ssh_password_user, _ssh_password_host])
+		MissionManager.show_tech_note("ssh", "SSH — Secure Shell",
+			"Protocole de connexion distante chiffrée (port 22).\n" +
+			"Authentification : mot de passe ou clé cryptographique.\n" +
+			"Ici : credentials compromis → accès complet au serveur.\n\n" +
+			"Risque réel : 1 credential volé = intrusion totale.")
+	else:
+		_ssh_password_attempts += 1
+		if _ssh_password_attempts >= 3:
+			_ssh_password_attempts = 0
+			print_line("%s@%s: Permission denied (publickey,password)." % [_ssh_password_user, _ssh_password_host], "red")
+			input.grab_focus()
+		else:
+			print_line("Permission denied, please try again.", "red")
+			await get_tree().process_frame
+			display.append_text("%s@%s's password: " % [_ssh_password_user, _ssh_password_host])
+			scroll_bottom()
+			input.secret = true
+			_ssh_password_mode = true
+			input.grab_focus()
 
 
 func cmd_mkdir(args: Array[String]):
@@ -810,8 +953,35 @@ func cmd_tail(args: Array[String]):
 
 
 func cmd_find(args: Array[String]):
-	var pattern := args[0] if not args.is_empty() else ""
-	_find_recursive(GameFS.get_root(), pattern, "")
+	var search_root = current_dir
+	var pattern := ""
+	var i := 0
+	if i < args.size() and not args[i].begins_with("-"):
+		var node = GameFS.resolve_path(args[i], current_dir)
+		if node != null and node.is_folder:
+			search_root = node
+		else:
+			pattern = args[i]
+		i += 1
+	while i < args.size():
+		if args[i] == "-name" and i + 1 < args.size():
+			pattern = args[i + 1].strip_edges().trim_prefix("'").trim_suffix("'").trim_prefix('"').trim_suffix('"')
+			i += 2
+		else:
+			i += 1
+	_find_recursive(search_root, pattern, _node_to_path(search_root))
+
+
+func _node_to_path(node) -> String:
+	var root = GameFS.get_root()
+	if node == root:
+		return ""
+	var parts: Array = []
+	var n = node
+	while n != null and n != root:
+		parts.insert(0, n.name)
+		n = n.parent
+	return "/" + "/".join(parts)
 
 
 func _find_recursive(node, pattern: String, path: String):
@@ -823,6 +993,35 @@ func _find_recursive(node, pattern: String, path: String):
 			_find_recursive(child, pattern, cpath)
 
 
+func cmd_vpn(args: Array[String]):
+	if args.is_empty() or args[0] != "connect":
+		print_line("Usage: vpn connect <profile> <password>", "red")
+		return
+	if args.size() < 3:
+		print_line("vpn: missing credentials", "red")
+		return
+	is_typing = true
+	interrupted = false
+	print_line("Initializing VPN connection...", "gray")
+	await get_tree().create_timer(0.6).timeout
+	if interrupted: is_typing = false; return
+	print_line("Authenticating as %s..." % args[1], "gray")
+	await get_tree().create_timer(0.8).timeout
+	if interrupted: is_typing = false; return
+	print_line("Establishing encrypted tunnel...", "gray")
+	await get_tree().create_timer(1.0).timeout
+	if interrupted: is_typing = false; return
+	print_line("[color=#22cc66]VPN connected — NexCorp Internal Network[/color]")
+	print_line("IP assigned: 10.13.37.42", "gray")
+	print_line("Gateway:     10.13.37.1", "gray")
+	is_typing = false
+	MissionManager.show_tech_note("vpn", "VPN — Virtual Private Network",
+		"Crée un tunnel chiffré vers le réseau cible (NexCorp).\n" +
+		"Sans VPN, les IPs internes 10.13.37.0/24 sont inaccessibles.\n" +
+		"Mécanisme : authentification + chiffrement TLS 1.3.\n\n" +
+		"Vecteur d'attaque : credentials volés → accès réseau interne.")
+
+
 func cmd_ps():
 	print_line("  PID TTY          TIME CMD", "yellow")
 	print_line("    1 pts/0    00:00:00 bash", "white")
@@ -832,6 +1031,522 @@ func cmd_ps():
 func cmd_kill(args: Array[String]):
 	if args.is_empty(): print_line("Usage: kill <pid>", "red"); return
 	print_line("kill: (%s) - No such process" % args[0], "red")
+
+
+func cmd_hydra(args: Array[String]):
+	var raw := " ".join(args)
+	if args.is_empty() or not "-l" in raw:
+		print_line("Usage: hydra -l <user> -P <wordlist> ssh://<host>", "red")
+		return
+	if not "-P" in raw:
+		print_line("Hydra: option -P <wordlist> manquante.", "red")
+		print_line("Exemple : hydra -l admin -P rockyou.txt ssh://10.13.37.1", "yellow")
+		return
+	if not "ssh://" in raw:
+		print_line("Hydra: cible requise (ex: ssh://10.13.37.1).", "red")
+		return
+	if not MissionManager.vpn_connected:
+		interrupted = false
+		is_typing = true
+		print_line("Hydra v9.5 (c) 2023 by van Hauser/THC & David Maciejak", "gray")
+		await get_tree().create_timer(0.4).timeout
+		if interrupted: is_typing = false; return
+		if "10.13.37.1" in raw:
+			await get_tree().create_timer(0.6).timeout
+			if interrupted: is_typing = false; return
+			print_line("[ERROR] Could not connect to 10.13.37.1:22 — No route to host", "red")
+		else:
+			print_line("[ERROR] Target unreachable or invalid protocol", "red")
+		is_typing = false
+		return
+	interrupted = false
+	is_typing = true
+	print_line("Hydra v9.5 (c) 2023 by van Hauser/THC & David Maciejak", "gray")
+	print_line("[WARNING] Use for legal purposes only!", "yellow")
+	print_line("", "")
+	await get_tree().create_timer(0.4).timeout
+	if interrupted: is_typing = false; return
+	print_line("[INFO] Testing ssh://10.13.37.1 with login 'admin'", "gray")
+	print_line("[DATA] 16 tasks | 1 server | 500 login tries (l:1/p:500)", "gray")
+	await get_tree().create_timer(0.5).timeout
+	if interrupted: is_typing = false; return
+	const ATTEMPTS := [
+		"password", "admin123", "123456", "nexcorp", "admin",
+		"password1", "qwerty", "letmein", "nexcorp2024", "Admin!2024",
+		"n3xc0rp!", "adm1n", "adm1n_p@ss"
+	]
+	for i in range(ATTEMPTS.size()):
+		await get_tree().create_timer(0.16).timeout
+		if interrupted: is_typing = false; return
+		if i == ATTEMPTS.size() - 1:
+			display.append_text(
+				"[color=lightgreen][ATTEMPT] target 10.13.37.1 — login: admin — pass: %s  ✓ FOUND[/color]\n"
+				% ATTEMPTS[i]
+			)
+		else:
+			print_line("[ATTEMPT] target 10.13.37.1 — login: admin — pass: %s" % ATTEMPTS[i], "gray")
+		scroll_bottom()
+	await get_tree().create_timer(0.5).timeout
+	if interrupted: is_typing = false; return
+	print_line("", "")
+	display.append_text(
+		"[color=#22cc66][22][ssh] host: 10.13.37.1   login: admin   password: adm1n_p@ss[/color]\n"
+	)
+	scroll_bottom()
+	print_line("[1 of 1 target successfully completed, 1 valid password found]", "lightgreen")
+	print_line("", "")
+	is_typing = false
+	MissionManager.show_tech_note("bruteforce",
+		"Hydra vs Hashcat — Deux stratégies d'attaque",
+		"Hydra — attaque en ligne (online)\n" +
+		"Teste les mots de passe directement contre le service.\n" +
+		"Pas besoin de hash. Fonctionne sur SSH, FTP, HTTP...\n" +
+		"Ici : 13 tentatives suffisent — le mot de passe est faible.\n" +
+		"\n" +
+		"Hashcat — craquage hors ligne (offline)\n" +
+		"Nécessite un hash extrait au préalable (/etc/shadow).\n" +
+		"Très rapide (GPU). Aucune connexion réseau requise.\n" +
+		"Ici : inutilisable sans accès préalable au serveur.\n" +
+		"\n" +
+		"Défense : fail2ban, 2FA, clés SSH, mots de passe longs.")
+
+
+func cmd_hashcat(args: Array[String]):
+	interrupted = false
+	is_typing = true
+	print_line("hashcat v6.2.6 (c) 2023 by atom and m00nl1ght", "gray")
+	await get_tree().create_timer(0.4).timeout
+	if interrupted: is_typing = false; return
+	print_line("* Device #1: CPU (host), Intel(R) Core(TM) i5 @ 2.40GHz", "gray")
+	print_line("", "")
+	print_line("Hashes: 0 digests; input file is empty or not found.", "gray")
+	await get_tree().create_timer(0.3).timeout
+	if interrupted: is_typing = false; return
+	print_line("[ERROR] No hash to crack.", "red")
+	print_line("        hashcat travaille sur des hashes extraits (/etc/shadow, dump BDD...).", "gray")
+	print_line("        Pour attaquer SSH directement, utilise un outil d'attaque en ligne.", "yellow")
+	print_line("", "")
+	is_typing = false
+
+
+func cmd_md5sum(args: Array[String]):
+	if args.is_empty():
+		print_line("Usage: md5sum <file>", "red")
+		return
+	for fname in args:
+		var node = GameFS.resolve_path(fname, current_dir)
+		if node == null or node.is_folder:
+			print_line("md5sum: %s: No such file or directory" % fname, "red")
+			continue
+		print_line("a3f8c2e1d94b7f05a3f8c2e1d94b7f05  %s" % fname)
+
+
+# ─────────────────────────────────────────────────
+# SHELL DISTANT (SSH)
+# ─────────────────────────────────────────────────
+const REMOTE_FS: Dictionary = {
+	"/":                         ["home", "data", "etc", "var"],
+	"/home":                     ["admin"],
+	"/home/admin":               [".bash_history", ".profile", "notes.txt"],
+	"/data":                     ["confidentiel"],
+	"/data/confidentiel":        ["LISEZMOI.txt", "nexus_registry.dat", "archive_2025.tar.gz", "access.log"],
+	"/etc":                      ["passwd", "hostname", "shadow"],
+	"/var":                      ["log"],
+	"/var/log":                  ["auth.log", "syslog"],
+}
+
+const REMOTE_FILES: Dictionary = {
+	"/home/admin/.bash_history":
+		"ls\n" +
+		"pwd\n" +
+		"find /data -name '*.dat'\n" +
+		"cd /data/confidentiel\n" +
+		"ls -la\n" +
+		"cat LISEZMOI.txt\n" +
+		"cat nexus_registry.dat\n" +
+		"tar tf archive_2025.tar.gz\n" +
+		"exit",
+	"/home/admin/.profile":
+		"# ~/.profile: executed by login shells.\nexport PATH=$PATH:/usr/local/bin\numask 022",
+	"/home/admin/notes.txt":
+		"mémo perso — à ne pas laisser traîner\n\n" +
+		"dossier confidentiel : /data/confidentiel/\n" +
+		"  → nexus_registry.dat — NE PAS OUVRIR sans autorisation\n" +
+		"  → archive_2025.tar.gz — docs internes archivés\n\n" +
+		"accès restreint : admin only.\n" +
+		"shadow : pas touche.",
+	"/data/confidentiel/LISEZMOI.txt":
+		"ACCÈS RESTREINT — NexCorp Intranet\n" +
+		"Dossier : Données opérationnelles\n\n" +
+		"  nexus_registry.dat  — registre opérationnel (accès OMÉGA)\n" +
+		"  archive_2025.tar.gz — documents de travail archivés\n" +
+		"  access.log          — journal d'accès\n\n" +
+		"Toute consultation non autorisée est enregistrée.",
+	"/data/confidentiel/nexus_registry.dat":
+		"NEXUS — REGISTRE OPÉRATIONNEL\n" +
+		"Classification : CONFIDENTIEL\n" +
+		"Dernière synchronisation : 2026-06-14  03:41\n\n" +
+		"──────────────────────────────────────────\n" +
+		"ASSETS — STATUTS\n\n" +
+		"  ASSET_01 ............. [EXPURGÉ]\n" +
+		"  ASSET_02 ............. [EXPURGÉ]\n" +
+		"  ASSET_03 ............. INACTIF\n" +
+		"  ASSET_04 ............. COMPROMIS\n" +
+		"  ASSET_05 ............. [EXPURGÉ]\n" +
+		"  ASSET_06 ............. ACTIF / handler : UNKNOWN_▓▓▓\n" +
+		"  ASSET_07 ............. ACTIF / handler : UNKNOWN_▓▓▓\n" +
+		"                         acquisition démarrée : 14/10\n" +
+		"                         phase : 1  →  PHASE 2 EN ATTENTE\n\n" +
+		"──────────────────────────────────────────\n" +
+		"INFRASTRUCTURE COMPROMISE\n\n" +
+		"  nexcorp-srv-01     [ ACCÈS CONFIRMÉ ]\n" +
+		"  nexcorp-intranet   [ EN COURS       ]\n" +
+		"  cible_B            [ [EXPURGÉ]      ]\n" +
+		"  cible_C            [ [EXPURGÉ]      ]\n\n" +
+		"──────────────────────────────────────────\n" +
+		"PROCHAINE ÉTAPE\n\n" +
+		"  PHASE 2 — activation sur signal handler.\n" +
+		"  Délai estimé : imminent.\n" +
+		"  Détails : [EXPURGÉ]\n\n" +
+		"──────────────────────────────────────────\n" +
+		"AVERTISSEMENT SYSTÈME\n" +
+		"  Ce fichier est surveillé en lecture.\n" +
+		"  Toute consultation non autorisée\n" +
+		"  déclenche une alerte niveau 3.",
+	"/data/confidentiel/access.log":
+		"[2026-06-29 00:58:11] sshd: Failed password for admin from 203.0.113.47\n" +
+		"[2026-06-29 00:58:14] sshd: Failed password for admin from 203.0.113.47\n" +
+		"[2026-06-29 00:58:19] sshd: Failed password for admin from 203.0.113.47\n" +
+		"[2026-06-29 01:13:55] sshd: Accepted password for admin from 10.13.37.42\n" +
+		"[2026-06-29 01:14:02] admin: cd /data/confidentiel",
+	"/data/confidentiel/archive_2025.tar.gz":
+		"[ERREUR] Fichier binaire — utiliser 'tar tf' pour lister le contenu.",
+	"/etc/passwd":
+		"root:x:0:0:root:/root:/bin/bash\n" +
+		"admin:x:1000:1000:NexCorp Admin:/home/admin:/bin/bash\n" +
+		"www-data:x:33:33:www-data:/var/www:/usr/sbin/nologin\n" +
+		"nexcorp-svc:x:1001:1001:Service Account:/home/nexcorp-svc:/bin/bash",
+	"/etc/hostname":
+		"nexcorp-srv-01",
+	"/etc/shadow":
+		"cat: /etc/shadow: Permission denied",
+	"/var/log/auth.log":
+		"[2026-06-29 01:13:55] sshd: Accepted password for admin from 10.13.37.42\n" +
+		"[2026-06-29 01:14:22] sshd: session opened for user admin\n" +
+		"[2026-06-29 01:14:22] PAM: pam_unix(sshd:session): session opened for user admin",
+	"/var/log/syslog":
+		"[2026-06-29 00:00:01] kernel: NexCorp Security Layer v3.2.1 — ACTIVE\n" +
+		"[2026-06-29 01:13:00] firewall: Connexion interne autorisée 10.13.37.42:22\n" +
+		"[2026-06-29 01:14:00] IDS: [ALERTE] Activité anormale détectée — /data/confidentiel\n" +
+		"[2026-06-29 01:14:01] IDS: Analyse en cours... origine: 10.13.37.42",
+}
+
+
+func run_remote_command(command: String, args: Array[String]):
+	match command:
+		"ls":       _remote_ls(args)
+		"cd":       _remote_cd(args)
+		"pwd":      print_line(remote_path)
+		"cat":      _remote_cat(args)
+		"find":     _remote_find(args)
+		"grep":     _remote_grep(args)
+		"tar":      _remote_tar(args)
+		"md5sum":   _remote_md5sum(args)
+		"whoami":   print_line(ssh_user)
+		"hostname": print_line("nexcorp-srv-01")
+		"uname":    print_line("Linux nexcorp-srv-01 5.15.0-nexcorp #1 SMP x86_64 GNU/Linux")
+		"clear":    display.clear()
+		"ps":
+			print_line("  PID TTY          TIME CMD", "yellow")
+			print_line("    1 ?        00:00:00 systemd", "white")
+			print_line("  422 ?        00:00:00 sshd", "white")
+			print_line("  891 pts/0    00:00:00 bash", "white")
+			print_line("  892 pts/0    00:00:00 ps", "white")
+		"history":
+			for line in REMOTE_FILES["/home/admin/.bash_history"].split("\n"):
+				if line != "":
+					print_line("  " + line, "gray")
+		"exit":
+			_ssh_disconnect()
+		_:
+			print_line("bash: %s: command not found" % command, "red")
+
+
+func _remote_ls(args: Array[String]):
+	var show_long := false
+	for a in args:
+		if "l" in a and a.begins_with("-"):
+			show_long = true
+	var target := remote_path
+	for a in args:
+		if not a.begins_with("-"):
+			target = _remote_resolve(a)
+			break
+	var entries: Array = []
+	if REMOTE_FS.has(target):
+		entries = REMOTE_FS[target]
+	elif _tar_dirs.has(target):
+		entries = _tar_dirs[target]
+	else:
+		print_line("ls: cannot access '%s': No such file or directory" % target, "red")
+		return
+	if entries.is_empty():
+		return
+	var base: String = "" if target == "/" else target
+	if show_long:
+		print_line("total %d" % entries.size(), "gray")
+		for e in entries:
+			var full: String = base + "/" + e
+			var is_dir := REMOTE_FS.has(full) or _tar_dirs.has(full)
+			if is_dir:
+				print_line("drwxr-x---  2 admin nexcorp  4096 Jun 29 01:14 [color=deepskyblue]%s/[/color]" % e)
+			elif e.ends_with(".enc"):
+				print_line("-rw-------  1 admin nexcorp  4096 Jun 28 23:59 [color=yellow]%s[/color]" % e)
+			else:
+				print_line("-rw-r--r--  1 admin nexcorp  1024 Jun 28 23:59 [color=lightgreen]%s[/color]" % e)
+	else:
+		var out: Array[String] = []
+		for e in entries:
+			var full: String = base + "/" + e
+			if REMOTE_FS.has(full) or _tar_dirs.has(full):
+				out.append("[color=deepskyblue]%s/[/color]" % e)
+			elif e.ends_with(".enc"):
+				out.append("[color=yellow]%s[/color]" % e)
+			else:
+				out.append("[color=lightgreen]%s[/color]" % e)
+		display.append_text("  ".join(out) + "\n")
+		scroll_bottom()
+
+
+func _remote_cd(args: Array[String]):
+	if args.is_empty():
+		remote_path = "/home/admin"
+		update_prompt_label()
+		return
+	var target := _remote_resolve(args[0])
+	if REMOTE_FS.has(target) or _tar_dirs.has(target):
+		remote_path = target
+		update_prompt_label()
+	else:
+		print_line("bash: cd: %s: No such file or directory" % args[0], "red")
+
+
+func _remote_cat(args: Array[String]):
+	if args.is_empty():
+		print_line("Usage: cat <file>", "red")
+		return
+	for fname in args:
+		var full := _remote_resolve(fname)
+		if REMOTE_FS.has(full) or _tar_dirs.has(full):
+			print_line("cat: %s: Is a directory" % fname, "red")
+			continue
+		var content := ""
+		if REMOTE_FILES.has(full):
+			content = REMOTE_FILES[full]
+		elif _tar_extracted.has(full):
+			content = _tar_extracted[full]
+		else:
+			print_line("cat: %s: No such file or directory" % fname, "red")
+			continue
+		if full == "/etc/shadow":
+			print_line("cat: /etc/shadow: Permission denied", "red")
+			continue
+		for line in content.split("\n"):
+			print_line(line)
+
+
+func _remote_find(args: Array[String]) -> void:
+	var search_root := remote_path
+	var name_filter := ""
+	var type_filter := ""
+	var i := 0
+	while i < args.size():
+		var a := args[i]
+		if (a == "-name" or a == "--name") and i + 1 < args.size():
+			name_filter = args[i + 1].strip_edges().trim_prefix("'").trim_suffix("'").trim_prefix('"').trim_suffix('"')
+			i += 2
+		elif (a == "-type" or a == "--type") and i + 1 < args.size():
+			type_filter = args[i + 1]
+			i += 2
+		elif not a.begins_with("-"):
+			search_root = _remote_resolve(a)
+			i += 1
+		else:
+			i += 1
+	if not REMOTE_FS.has(search_root):
+		print_line("find: '%s': No such file or directory" % search_root, "red")
+		return
+	var results: Array[String] = []
+	_rfind_recursive(search_root, name_filter, type_filter, results)
+	for r in results:
+		if r.ends_with(".enc"):
+			print_line("[color=yellow]%s[/color]" % r)
+		elif REMOTE_FS.has(r) or _tar_dirs.has(r):
+			print_line("[color=deepskyblue]%s[/color]" % r)
+		else:
+			print_line(r)
+
+
+func _rfind_recursive(path: String, name_filter: String, type_filter: String, results: Array[String]) -> void:
+	var entries: Array = REMOTE_FS.get(path, [])
+	var base: String = "" if path == "/" else path
+	for e in entries:
+		var full: String = base + "/" + e
+		var is_dir := REMOTE_FS.has(full)
+		var matches_name := name_filter.is_empty() or _glob_match(e, name_filter)
+		var matches_type := type_filter.is_empty() or (type_filter == "d" and is_dir) or (type_filter == "f" and not is_dir)
+		if matches_name and matches_type:
+			results.append(full)
+		if is_dir:
+			_rfind_recursive(full, name_filter, type_filter, results)
+
+
+func _glob_match(text: String, pattern: String) -> bool:
+	if not pattern.contains("*"):
+		return text == pattern
+	if pattern.begins_with("*"):
+		return text.ends_with(pattern.substr(1))
+	if pattern.ends_with("*"):
+		return text.begins_with(pattern.substr(0, pattern.length() - 1))
+	return text == pattern
+
+
+func _remote_grep(args: Array[String]) -> void:
+	if args.size() < 2:
+		print_line("Usage: grep <pattern> <file...>", "red")
+		return
+	var pattern := args[0].to_lower()
+	var found_any := false
+	for i in range(1, args.size()):
+		var full := _remote_resolve(args[i])
+		var content := ""
+		if REMOTE_FILES.has(full):
+			content = REMOTE_FILES[full]
+		elif _tar_extracted.has(full):
+			content = _tar_extracted[full]
+		else:
+			print_line("grep: %s: No such file or directory" % args[i], "red")
+			continue
+		for line in content.split("\n"):
+			if pattern in line.to_lower():
+				print_line(line)
+				found_any = true
+
+
+func _remote_tar(args: Array[String]) -> void:
+	if args.is_empty():
+		print_line("Usage: tar [tf|xf] <archive.tar.gz>", "red")
+		return
+	var flags := ""
+	var archive_arg := ""
+	for a in args:
+		if a.begins_with("-"):
+			flags += a.substr(1)
+		elif flags.is_empty():
+			flags = a
+		else:
+			archive_arg = a
+	if archive_arg.is_empty():
+		for a in args:
+			if a.ends_with(".tar.gz") or a.ends_with(".tgz"):
+				archive_arg = a
+				break
+	if archive_arg.is_empty():
+		print_line("tar: archive non spécifiée", "red")
+		return
+	var full_path := _remote_resolve(archive_arg)
+	if not REMOTE_FILES.has(full_path):
+		print_line("tar: %s: fichier introuvable" % archive_arg, "red")
+		return
+	var listing := [
+		"archive_2025/",
+		"archive_2025/infra_nexcorp.txt",
+		"archive_2025/contacts_internes.csv",
+		"archive_2025/planning_ops.txt",
+	]
+	if "t" in flags:
+		for item in listing:
+			if item.ends_with("/"):
+				print_line("[color=deepskyblue]%s[/color]" % item)
+			else:
+				print_line(item, "gray")
+	elif "x" in flags:
+		print_line("tar: extraction vers ./archive_2025/", "gray")
+		for item in listing:
+			if not item.ends_with("/"):
+				print_line("  inflating: " + item, "gray")
+		var dir_base: String = "" if remote_path == "/" else remote_path
+		var ext_dir: String = dir_base + "/archive_2025"
+		_tar_dirs[ext_dir] = ["infra_nexcorp.txt", "contacts_internes.csv", "planning_ops.txt"]
+		_tar_extracted[ext_dir + "/infra_nexcorp.txt"] = \
+			"NEXCORP — CARTOGRAPHIE INFRASTRUCTURE (INTERNE)\n\n" + \
+			"Serveurs exposés :\n" + \
+			"  10.13.37.1   nexcorp-srv-01   SSH:22  HTTP:80\n" + \
+			"  10.13.37.2   nexcorp-intranet  HTTP:8080  [AUTH REQUISE]\n" + \
+			"  10.13.37.5   nexcorp-backup    FTP:21   [DEPRECATED]\n\n" + \
+			"Accès VPN : nexcorp_vpn (voir docs RH)\n" + \
+			"Politique : pas de connexion directe externe autorisée.\n\n" + \
+			"Dernière mise à jour : sept. 2025"
+		_tar_extracted[ext_dir + "/contacts_internes.csv"] = \
+			"nom,poste,email,acces\n" + \
+			"J. Laurent,CFO,j.laurent@nexcorp.fr,ADMIN\n" + \
+			"M. Fontaine,DSI,m.fontaine@nexcorp.fr,ADMIN\n" + \
+			"A. Mercer,Responsable sécurité,a.mercer@nexcorp.fr,LEVEL2\n" + \
+			"P. Dubois,Développeur,p.dubois@nexcorp.fr,STANDARD\n" + \
+			"...(38 entrées supplémentaires)"
+		_tar_extracted[ext_dir + "/planning_ops.txt"] = \
+			"PLANNING OPÉRATIONNEL — CONFIDENTIEL\n\n" + \
+			"T4 2025 :\n" + \
+			"  - Audit sécurité interne (prestataire externe)\n" + \
+			"  - Migration données vers nexcorp-intranet\n" + \
+			"  - Révision politique accès LEVEL2+\n\n" + \
+			"T1 2026 :\n" + \
+			"  - [EXPURGÉ]\n" + \
+			"  - [EXPURGÉ]\n\n" + \
+			"Contact : m.fontaine@nexcorp.fr"
+		print_line("Extraction terminée.", "green")
+	else:
+		print_line("tar: option(s) non reconnue(s) : %s" % flags, "red")
+
+
+func _remote_md5sum(args: Array[String]):
+	if args.is_empty():
+		print_line("Usage: md5sum <file>", "red")
+		return
+	for fname in args:
+		var full := _remote_resolve(fname)
+		if REMOTE_FS.has(full):
+			print_line("md5sum: %s: Is a directory" % fname, "red")
+			continue
+		if not REMOTE_FILES.has(full):
+			print_line("md5sum: %s: No such file or directory" % fname, "red")
+			continue
+		print_line("a3f8c2e1d94b7f05a3f8c2e1d94b7f05  %s" % fname)
+
+
+func _remote_resolve(path: String) -> String:
+	if path.begins_with("/"):
+		return path.rstrip("/") if path.length() > 1 else "/"
+	if path == "..":
+		if remote_path == "/": return "/"
+		var p := remote_path.rsplit("/", true, 1)
+		return p[0] if p[0] != "" else "/"
+	if path == "." or path == "":
+		return remote_path
+	if path == "~":
+		return "/home/admin"
+	var base := "" if remote_path == "/" else remote_path
+	return base + "/" + path
+
+
+func _ssh_disconnect():
+	print_line("logout", "gray")
+	print_line("Connection to %s closed." % ssh_host, "gray")
+	ssh_connected = false
+	ssh_host = ""
+	ssh_user = ""
+	remote_path = "/home/admin"
+	update_prompt_label()
 
 
 # ─────────────────────────────────────────────────

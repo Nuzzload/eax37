@@ -255,7 +255,7 @@ func _show_preview(filename: String, content: String):
 	var win = PanelContainer.new()
 	win.size = Vector2(340, 260)
 	win.position = Vector2(100, 80)
-	win.z_index = 10
+	win.z_index = 0
 
 	var win_style = StyleBoxFlat.new()
 	win_style.bg_color = C_SURFACE

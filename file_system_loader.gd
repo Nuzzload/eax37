@@ -66,9 +66,18 @@ func _ready() -> void:
 	_home = resolve_path("home/hacker", _root)
 	if _home == null:
 		_home = _root
+	refresh_locked_content()
 
 
 # ── API PUBLIQUE ──────────────────────────────────────────────────────────────
+
+# Cache/dévoile les éléments dont la visibilité dépend de la progression
+# des missions. À rappeler après un chargement de sauvegarde.
+func refresh_locked_content() -> void:
+	var wordlists := resolve_path("home/hacker/wordlists", _root)
+	if wordlists:
+		wordlists.hidden = not MissionManager.is_mission_completed("m002")
+
 
 func get_root() -> FSNode:
 	return _root

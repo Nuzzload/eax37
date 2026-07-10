@@ -62,6 +62,14 @@ var env_ref: Environment
 var is_day_mode := false
 var day_tween: Tween
 var vignette_cr: ColorRect
+var _hint_label: Label = null
+
+# ─── Rideau de fin de démo ────────────────────────────────────────────────────
+const CREDITS_SCENE := "res://cutscenes/credits.tscn"
+var _curtain_fade: ColorRect
+var _curtain_top: ColorRect
+var _curtain_bottom: ColorRect
+var _demo_ending := false
 
 # ─────────────────────────────────────────────────────────────────────────────
 func _ready():
@@ -82,9 +90,12 @@ func _ready():
 	_setup_camera()
 	_build_crt_overlay()
 	_build_vignette()
+	_build_hint_label()
+	_build_end_curtain()
 	Input.mouse_mode = Input.MOUSE_MODE_CONFINED
 	_start_flicker.call_deferred()
 	_start_street_lamp_flicker.call_deferred()
+	MissionManager.demo_end.connect(_on_demo_end)
 
 
 func _notification(what: int):
@@ -154,8 +165,9 @@ func _build_room():
 	for i in range(7):
 		_make_box(Vector3(-3.0 + i * 1.0, 0.001, 0), Vector3(0.018, 0.001, 5.0), COL_FLOOR_DARK)
 	# Fissures/veines dans le bois
+	var _vein_lengths := [2.3, 3.8, 1.9, 4.1, 2.7]
 	for i in range(5):
-		_make_box(Vector3(-2.0 + i * 0.8, 0.001, 0), Vector3(0.005, 0.001, randf_range(1.5, 4.5)), Color(0.12, 0.08, 0.04))
+		_make_box(Vector3(-2.0 + i * 0.8, 0.001, 0), Vector3(0.005, 0.001, _vein_lengths[i]), Color(0.12, 0.08, 0.04))
 	# Traces / usure au sol
 	_make_box(Vector3(-0.3, 0.001, 0.5), Vector3(1.2, 0.001, 0.6), Color(0.18, 0.12, 0.07))
 	_make_box(Vector3(-1.6, 0.001, -0.2), Vector3(0.5, 0.001, 0.4), Color(0.16, 0.10, 0.06))
@@ -984,6 +996,95 @@ void fragment() {
 	vignette_cr = cr
 
 
+# ─── HINT ALT+E ──────────────────────────────────────────────────────────────
+func _build_hint_label() -> void:
+	var cl := CanvasLayer.new()
+	cl.layer = 15
+	add_child(cl)
+
+	_hint_label = Label.new()
+	_hint_label.text = "ALT + E  —  utiliser l'ordinateur"
+	_hint_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_hint_label.add_theme_font_size_override("font_size", 11)
+	_hint_label.add_theme_color_override("font_color", Color("#8888a0"))
+	_hint_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_hint_label.modulate.a = 0.0
+	_hint_label.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
+	_hint_label.offset_bottom = -22
+	_hint_label.offset_top = -44
+	cl.add_child(_hint_label)
+
+	var tw := create_tween()
+	tw.tween_interval(1.5)
+	tw.tween_property(_hint_label, "modulate:a", 1.0, 1.2)
+
+
+func hide_gameplay_hint() -> void:
+	# Utilisé par la cutscene d'intro : ce hint de gameplay n'a rien à faire
+	# à l'écran pendant une scène cinématique.
+	if _hint_label:
+		_hint_label.visible = false
+
+
+# ─── RIDEAU DE FIN DE DÉMO ────────────────────────────────────────────────────
+func _build_end_curtain() -> void:
+	var cl := CanvasLayer.new()
+	cl.layer = 200
+	add_child(cl)
+
+	_curtain_top = ColorRect.new()
+	_curtain_top.color = Color(0, 0, 0, 1)
+	_curtain_top.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_curtain_top.set_anchors_preset(Control.PRESET_TOP_WIDE)
+	_curtain_top.offset_bottom = 0
+	cl.add_child(_curtain_top)
+
+	_curtain_bottom = ColorRect.new()
+	_curtain_bottom.color = Color(0, 0, 0, 1)
+	_curtain_bottom.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_curtain_bottom.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
+	_curtain_bottom.offset_top = 0
+	cl.add_child(_curtain_bottom)
+
+	_curtain_fade = ColorRect.new()
+	_curtain_fade.color = Color(0, 0, 0, 0)
+	_curtain_fade.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_curtain_fade.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	cl.add_child(_curtain_fade)
+
+
+func _on_demo_end() -> void:
+	if _demo_ending:
+		return
+	_demo_ending = true
+
+	mouse_look = false
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	if _hint_label:
+		_hint_label.modulate.a = 0.0
+
+	# Le signal — dernier sursaut avant que l'écran ne se ferme
+	GlitchManager.trigger(0.7, 0.5, "sentinel")
+	await get_tree().create_timer(0.6).timeout
+
+	# Le rideau se ferme comme au théâtre — bandes noires qui se rejoignent...
+	var close_tw := create_tween()
+	close_tw.set_parallel(true)
+	close_tw.set_trans(Tween.TRANS_CUBIC)
+	close_tw.set_ease(Tween.EASE_IN_OUT)
+	close_tw.tween_property(_curtain_top, "offset_bottom", get_viewport().get_visible_rect().size.y * 0.5, 1.3)
+	close_tw.tween_property(_curtain_bottom, "offset_top", -get_viewport().get_visible_rect().size.y * 0.5, 1.3)
+	await close_tw.finished
+
+	# ...puis fondu final pour effacer toute trace de la pièce
+	var fade_tw := create_tween()
+	fade_tw.tween_property(_curtain_fade, "color:a", 1.0, 0.6)
+	await fade_tw.finished
+
+	await get_tree().create_timer(0.3).timeout
+	get_tree().change_scene_to_file(CREDITS_SCENE)
+
+
 # ─── CAMÉRA ──────────────────────────────────────────────────────────────────
 func _setup_camera():
 	camera = Camera3D.new()
@@ -995,6 +1096,9 @@ func _setup_camera():
 
 # ─── INPUT ───────────────────────────────────────────────────────────────────
 func _unhandled_input(event: InputEvent):
+	if _demo_ending:
+		return
+
 	if event is InputEventKey and event.pressed and event.keycode == KEY_E and event.alt_pressed:
 		_toggle_terminal_view()
 		return
@@ -1113,6 +1217,11 @@ func _toggle_lamp():
 
 func _toggle_terminal_view():
 	is_at_terminal = !is_at_terminal
+	if is_at_terminal and _hint_label:
+		var ht := create_tween()
+		ht.tween_property(_hint_label, "modulate:a", 0.0, 0.4)
+		ht.tween_callback(_hint_label.queue_free)
+		_hint_label = null
 	if tween: tween.kill()
 	tween = create_tween()
 	tween.set_ease(Tween.EASE_IN_OUT)

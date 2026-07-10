@@ -81,7 +81,7 @@ grow_vertical = 2
 mouse_filter = 2
 
 [node name="CursorLayer" type="CanvasLayer" parent="." unique_id=308589704]
-layer = 128
+layer = 300
 
 [node name="Cursor" type="Control" parent="CursorLayer" unique_id=532790925]
 layout_mode = 3

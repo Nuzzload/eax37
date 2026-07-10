@@ -161,6 +161,7 @@ func _finish_boot() -> void:
 	_boot_panel.visible = false
 	_menu_start_ms = Time.get_ticks_msec()
 	_fade_in(_main_panel)
+	_refresh_continue_btn()
 	_typewrite_subtitle()
 	_show_toast("ACCÈS SYSTÈME ACCORDÉ", C_GREEN)
 
@@ -893,7 +894,44 @@ func _switch_to_main() -> void:
 # ═══════════════════════════════════════════════════
 # HANDLERS
 # ═══════════════════════════════════════════════════
+func _refresh_continue_btn() -> void:
+	if not SaveManager.has_save():
+		return
+	_continue_btn.disabled = false
+	_continue_btn.pressed.connect(_on_continue_pressed)
+	_continue_btn.mouse_entered.connect(_glitch_btn_text.bind(_continue_btn, "CONTINUER"))
+	var fg := C_ACCENT
+	var bg := C_ACCENT_DIM
+	var s  := StyleBoxFlat.new()
+	s.bg_color     = Color(bg.r, bg.g, bg.b, 0.25)
+	s.border_color = Color(fg.r, fg.g, fg.b, 0.4)
+	s.border_width_left = 3
+	s.set_content_margin_all(10)
+	s.corner_radius_top_left     = 2; s.corner_radius_top_right    = 2
+	s.corner_radius_bottom_left  = 2; s.corner_radius_bottom_right = 2
+	var sh := s.duplicate() as StyleBoxFlat
+	sh.bg_color = Color(bg.r, bg.g, bg.b, 0.6); sh.border_color = fg
+	var sp := sh.duplicate() as StyleBoxFlat; sp.bg_color = bg
+	_continue_btn.add_theme_stylebox_override("normal",  s)
+	_continue_btn.add_theme_stylebox_override("hover",   sh)
+	_continue_btn.add_theme_stylebox_override("pressed", sp)
+	_continue_btn.add_theme_color_override("font_color",         fg)
+	_continue_btn.add_theme_color_override("font_hover_color",   C_BRIGHT)
+	_continue_btn.add_theme_color_override("font_pressed_color", C_BRIGHT)
+
+
+func _on_continue_pressed() -> void:
+	SaveManager.load_save()
+	GameFS.refresh_locked_content()
+	_fade_out(_main_panel, 0.4, func() -> void:
+		get_tree().change_scene_to_file("res://room.tscn")
+	)
+
+
 func _on_new_game_pressed() -> void:
+	MissionManager.reset()
+	HackerBrain.reset()
+	GameFS.refresh_locked_content()
 	_fade_out(_main_panel, 0.4, func() -> void:
 		get_tree().change_scene_to_file(GAME_SCENE)
 	)

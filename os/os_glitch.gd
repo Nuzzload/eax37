@@ -18,20 +18,42 @@ func _ready() -> void:
 	GlitchManager.glitch_requested.connect(_on_glitch_requested)
 
 
-func _on_glitch_requested(intensity: float, duration: float) -> void:
-	_run_glitch(intensity, duration)
+# Palettes de barres de glitch, par "kind"
+const PALETTES := {
+	"hacker": [
+		Color(0.9, 0.0, 0.1, 0.85),
+		Color(1.0, 1.0, 1.0, 0.4),
+		Color(0.0, 0.9, 0.9, 0.6),
+		Color(0.0, 0.0, 0.0, 0.7),
+	],
+	"sentinel": [
+		Color(0.1, 0.9, 0.4, 0.85),
+		Color(1.0, 1.0, 1.0, 0.4),
+		Color(0.0, 0.85, 0.7, 0.6),
+		Color(0.0, 0.0, 0.0, 0.7),
+	],
+}
+const FLASH_COLORS := {
+	"hacker":   Color(0.7, 0.0, 0.05, 1.0),
+	"sentinel": Color(0.05, 0.6, 0.2, 1.0),
+}
 
 
-func _run_glitch(intensity: float, duration: float) -> void:
+func _on_glitch_requested(intensity: float, duration: float, kind: String = "hacker") -> void:
+	_run_glitch(intensity, duration, kind)
+
+
+func _run_glitch(intensity: float, duration: float, kind: String = "hacker") -> void:
 	for child in root.get_children():
 		child.queue_free()
 	_photo_frames.clear()
 
+	var palette: Array = PALETTES.get(kind, PALETTES["hacker"])
+	var flash_color: Color = FLASH_COLORS.get(kind, FLASH_COLORS["hacker"])
 	var vp := get_viewport().get_visible_rect().size
-	var end_time := Time.get_ticks_msec() + int(duration * 1000)
 
-	# Charge les photos disponibles
-	var photos := _load_photos()
+	# Charge les photos disponibles — le blackmail visuel est réservé à UNKNOWN_▓▓▓
+	var photos := _load_photos() if kind == "hacker" else []
 
 	# Phase 1 : glitch intense court
 	var glitch_end := Time.get_ticks_msec() + int(duration * 1000)
@@ -47,13 +69,9 @@ func _run_glitch(intensity: float, duration: float) -> void:
 				randf_range(0.0, vp.x - w),
 				randf_range(0.0, vp.y)
 			)
-			var colors = [
-				Color(0.9, 0.0, 0.1, randf_range(0.4, 0.85)),
-				Color(1.0, 1.0, 1.0, randf_range(0.15, 0.4)),
-				Color(0.0, 0.9, 0.9, randf_range(0.2, 0.6)),
-				Color(0.0, 0.0, 0.0, randf_range(0.3, 0.7)),
-			]
-			bar.color = colors[randi() % colors.size()]
+			var c: Color = palette[randi() % palette.size()]
+			c.a = randf_range(c.a * 0.5, c.a)
+			bar.color = c
 			root.add_child(bar)
 			# Les barres sont derrière les photos
 			root.move_child(bar, 0)
@@ -62,7 +80,7 @@ func _run_glitch(intensity: float, duration: float) -> void:
 			var flash := ColorRect.new()
 			flash.mouse_filter = Control.MOUSE_FILTER_IGNORE
 			flash.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-			flash.color = Color(0.7, 0.0, 0.05, randf_range(0.06, 0.18 * intensity))
+			flash.color = Color(flash_color.r, flash_color.g, flash_color.b, randf_range(0.06, 0.18 * intensity))
 			root.add_child(flash)
 			root.move_child(flash, 0)
 
@@ -75,8 +93,8 @@ func _run_glitch(intensity: float, duration: float) -> void:
 
 		await get_tree().create_timer(randf_range(0.02, 0.06)).timeout
 
-	# Phase 2 : les photos apparaissent dans le calme
-	if photos.size() > 0:
+	# Phase 2 : les photos apparaissent dans le calme (seulement si glitch intense, hacker uniquement)
+	if photos.size() > 0 and intensity >= 0.5:
 		var count := mini(randi_range(1, 3), photos.size())
 		var used_positions: Array = []
 		for _i in count:
@@ -85,8 +103,9 @@ func _run_glitch(intensity: float, duration: float) -> void:
 			used_positions.append(pos)
 			_spawn_photo_frame(photo, pos, vp)
 
-	# Pause — le joueur voit les photos
-	await get_tree().create_timer(randf_range(2.5, 3.5)).timeout
+	# Pause — le joueur voit les photos (si hacker)
+	if not _photo_frames.is_empty():
+		await get_tree().create_timer(randf_range(2.5, 3.5)).timeout
 
 	# Phase 3 : second glitch court puis fermeture brutale
 	var glitch2_end := Time.get_ticks_msec() + 400
@@ -97,8 +116,8 @@ func _run_glitch(intensity: float, duration: float) -> void:
 			bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
 			bar.size = Vector2(randf_range(vp.x * 0.1, vp.x), randf_range(2.0, 10.0))
 			bar.position = Vector2(randf_range(0.0, vp.x * 0.3), randf_range(0.0, vp.y))
-			var colors = [Color(0.9, 0.0, 0.1, 0.7), Color(1.0, 1.0, 1.0, 0.3), Color(0.0, 0.0, 0.0, 0.8)]
-			bar.color = colors[randi() % colors.size()]
+			var c2: Color = palette[randi() % palette.size()]
+			bar.color = c2
 			root.add_child(bar)
 			root.move_child(bar, 0)
 		await get_tree().process_frame

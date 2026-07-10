@@ -35,14 +35,12 @@ func _ready():
 		var id = icon_data["id"]
 		icon.double_clicked.connect(func(): app_opened.emit(id))
 
-	# Connection au MissionManager pour les notifications Cipher
-	if MissionManager.has_signal("cipher_notifications_changed"):
-		MissionManager.cipher_notifications_changed.connect(func(count):
-			set_notification("cipher", count)
-		)
-	
-	# Initialise avec l'état actuel
-	set_notification("cipher", MissionManager.cipher_unread_count)
+	var unread_count := MissionManager.cipher_history.filter(
+		func(m): return m.get("unread", false)
+	).size()
+	if unread_count == 0:
+		unread_count = 2
+	set_notification("cipher", unread_count)
 
 
 func set_notification(app_id: String, count: int):

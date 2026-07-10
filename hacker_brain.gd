@@ -270,7 +270,7 @@ func _detect_category(msg: String) -> String:
 
 func _update_mood(category: String) -> void:
 	match category:
-		"refus", "menace_joueur", "insulte", "defi":
+		"refus", "menace_joueur", "insulte":
 			current_mood = HackerMood.THREATENING
 		"accord", "mission_ok", "resignation":
 			current_mood = HackerMood.SATISFIED

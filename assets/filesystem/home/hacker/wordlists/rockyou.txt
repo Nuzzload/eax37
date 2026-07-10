@@ -1,0 +1,11 @@
+# rockyou.txt — liste de mots de passe
+# Source : breach RockYou 2009, 14.344.384 entrées
+# Format : un mot de passe par ligne
+#
+# Usage hydra : hydra -l <user> -P rockyou.txt <protocol>://<host>
+#
+# password
+# 123456
+# 12345678
+# ...
+# [14 344 380 entrées supplémentaires]

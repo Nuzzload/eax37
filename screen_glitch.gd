@@ -14,15 +14,36 @@ func _ready() -> void:
 	GlitchManager.glitch_requested.connect(_on_glitch_requested)
 
 
-func _on_glitch_requested(intensity: float, duration: float) -> void:
-	_run_glitch(intensity, duration)
+# Palettes de barres, par "kind" — hacker = rouge sang, sentinel = vert (contact allié)
+const PALETTES := {
+	"hacker": [
+		Color(0.8, 0.0, 0.1, 0.7),
+		Color(1.0, 1.0, 1.0, 0.3),
+		Color(0.0, 0.8, 0.8, 0.5),
+	],
+	"sentinel": [
+		Color(0.1, 0.8, 0.35, 0.7),
+		Color(1.0, 1.0, 1.0, 0.3),
+		Color(0.0, 0.8, 0.6, 0.5),
+	],
+}
+const FLASH_COLORS := {
+	"hacker":   Color(0.6, 0.0, 0.05, 1.0),
+	"sentinel": Color(0.05, 0.55, 0.2, 1.0),
+}
 
 
-func _run_glitch(intensity: float, duration: float) -> void:
+func _on_glitch_requested(intensity: float, duration: float, kind: String = "hacker") -> void:
+	_run_glitch(intensity, duration, kind)
+
+
+func _run_glitch(intensity: float, duration: float, kind: String = "hacker") -> void:
 	# Nettoie les anciens éléments
 	for child in root.get_children():
 		child.queue_free()
 
+	var palette: Array = PALETTES.get(kind, PALETTES["hacker"])
+	var flash_color: Color = FLASH_COLORS.get(kind, FLASH_COLORS["hacker"])
 	var vp := get_viewport().get_visible_rect().size
 	var end_time := Time.get_ticks_msec() + int(duration * 1000)
 
@@ -39,21 +60,17 @@ func _run_glitch(intensity: float, duration: float) -> void:
 				randf_range(0.0, vp.x - w),
 				randf_range(0.0, vp.y)
 			)
-			# Couleurs : rouge sang, blanc, cyan
-			var colors = [
-				Color(0.8, 0.0, 0.1, randf_range(0.3, 0.7)),
-				Color(1.0, 1.0, 1.0, randf_range(0.1, 0.3)),
-				Color(0.0, 0.8, 0.8, randf_range(0.2, 0.5)),
-			]
-			bar.color = colors[randi() % colors.size()]
+			var c: Color = palette[randi() % palette.size()]
+			c.a = randf_range(c.a * 0.4, c.a)
+			bar.color = c
 			root.add_child(bar)
 
-		# Flash rouge global occasionnel
+		# Flash global occasionnel
 		if randf() < 0.3 * intensity:
 			var flash := ColorRect.new()
 			flash.mouse_filter = Control.MOUSE_FILTER_IGNORE
 			flash.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-			flash.color = Color(0.6, 0.0, 0.05, randf_range(0.05, 0.15 * intensity))
+			flash.color = Color(flash_color.r, flash_color.g, flash_color.b, randf_range(0.05, 0.15 * intensity))
 			root.add_child(flash)
 
 		await get_tree().process_frame
