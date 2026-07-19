@@ -176,7 +176,7 @@ func _on_input_event(event: InputEvent):
 				else:
 					display.append_text(
 						"[color=lime]%s@%s[/color][color=white]:[/color][color=deepskyblue]%s[/color][color=white]$ %s^C[/color]\n"
-						% [user, host, get_terminal_path(), input.text]
+						% [user, host, get_terminal_path(), _bbcode_escape(input.text)]
 					)
 					input.text = ""
 					scroll_bottom()
@@ -236,16 +236,17 @@ func _on_command(cmd: String):
 		return
 	var command_text := cmd.strip_edges()
 
+	var command_text_display := _bbcode_escape(command_text)
 	if ssh_connected:
 		var dp := "~" if remote_path == "/home/admin" else remote_path
 		display.append_text(
 			"[color=#44aaff]%s@nexcorp-srv-01[/color][color=white]:[/color][color=deepskyblue]%s[/color][color=white]$ %s[/color]\n"
-			% [ssh_user, dp, command_text]
+			% [ssh_user, dp, command_text_display]
 		)
 	else:
 		display.append_text(
 			"[color=lime]%s@%s[/color][color=white]:[/color][color=deepskyblue]%s[/color][color=white]$ %s[/color]\n"
-			% [user, host, get_terminal_path(), command_text]
+			% [user, host, get_terminal_path(), command_text_display]
 		)
 
 	if command_text != "":
@@ -315,7 +316,7 @@ func _piped_grep(args: Array[String], lines: Array[String]):
 	var found := false
 	for line in lines:
 		if keyword.to_lower() in line.to_lower():
-			display.append_text("[color=white]%s[/color]\n" % line.replace(keyword, "[color=red]%s[/color]" % keyword))
+			display.append_text("[color=white]%s[/color]\n" % line.replace(keyword, "[color=red]%s[/color]" % _bbcode_escape(keyword)))
 			scroll_bottom()
 			found = true
 	if not found:
@@ -376,7 +377,7 @@ func autocomplete():
 	elif matches.size() > 1:
 		display.append_text(
 			"[color=lime]%s@%s[/color][color=white]:[/color][color=deepskyblue]%s[/color][color=white]$ %s[/color]\n"
-			% [user, host, get_terminal_path(), input.text]
+			% [user, host, get_terminal_path(), _bbcode_escape(input.text)]
 		)
 		print_line("  ".join(matches), "white")
 		update_prompt_label()
@@ -401,6 +402,13 @@ func strip_bbcode(text: String) -> String:
 		elif c == "]": in_tag = false
 		elif not in_tag: result += c
 	return result
+
+
+# Neutralise les balises BBCode dans du texte saisi par le joueur avant de
+# l'insérer dans le RichTextLabel (bbcode_enabled), pour éviter qu'une saisie
+# du type "[img]...[/img]" ou "[color=...]" ne soit interprétée comme du markup.
+func _bbcode_escape(text: String) -> String:
+	return text.replace("[", "[lb]")
 
 
 # ─────────────────────────────────────────────────
@@ -641,7 +649,7 @@ func cmd_grep(args: Array[String]):
 		var hit := false
 		for line in node.get_content().split("\n"):
 			if keyword in line:
-				print_line(line.replace(keyword, "[color=red]%s[/color]" % keyword))
+				print_line(line.replace(keyword, "[color=red]%s[/color]" % _bbcode_escape(keyword)))
 				hit = true
 		if not hit:
 			print_line("(no match)", "gray")
@@ -654,7 +662,7 @@ func cmd_grep(args: Array[String]):
 			if keyword in content:
 				for line in content.split("\n"):
 					if keyword in line:
-						print_line("[color=yellow]%s[/color]: %s" % [child.node_name, line.replace(keyword, "[color=red]%s[/color]" % keyword)])
+						print_line("[color=yellow]%s[/color]: %s" % [_bbcode_escape(child.node_name), line.replace(keyword, "[color=red]%s[/color]" % _bbcode_escape(keyword))])
 						found = true
 	if not found:
 		print_line("grep: no match for '%s'" % keyword, "gray")
