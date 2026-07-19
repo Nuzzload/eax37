@@ -1,9 +1,6 @@
 # credits.gd
 # Attache à cutscenes/credits.tscn
 # Écran de fin de démo — générique de fin façon "EAX-OS" qui se déconnecte.
-#
-# ─── CONTENU À PERSONNALISER ─────────────────────────────────────────────────
-# Remplace les valeurs entre [ crochets ] ci-dessous et dans CREDITS_BLOCKS.
 extends Control
 
 const NEXT_SCENE := "res://ui/main_menu/MainMenu.tscn"
@@ -21,10 +18,10 @@ const GLITCH_CHARS := "!@#$%^&*<>?|▓░▒█▄▀±×÷∞Ω"
 # ── TEXTES — PLACEHOLDERS À REMPLIR ───────────────────────────────────────────
 const GAME_TITLE    := "EAX37"
 const END_HEADLINE  := "FIN DE LA DÉMO — CHAPITRE 1"
-const HEADLINE_SUB  := "[ Merci d'avoir joué jusqu'ici. — texte à ajuster ]"
+const HEADLINE_SUB  := "Merci d'être resté connecté jusqu'au bout."
 
 const FINAL_LINE  := "MERCI D'AVOIR JOUÉ"
-const TEASER_LINE := "[ Teaser / accroche pour le Chapitre 2 — à compléter ]"
+const TEASER_LINE := "La ligne d'UNKNOWN_▓▓▓ s'est éteinte. Une autre reste ouverte. — CHAPITRE 2 : BIENTÔT"
 
 # Générique défilant. Types disponibles :
 #   "section" — petit intitulé en majuscules, couleur accent
@@ -32,21 +29,24 @@ const TEASER_LINE := "[ Teaser / accroche pour le Chapitre 2 — à compléter ]
 #   "spacer"  — espace vertical, "h" = hauteur en px
 const CREDITS_BLOCKS := [
 	{"type": "spacer",  "h": 40},
-	{"type": "section", "text": "UN JEU DE"},
-	{"type": "name",    "text": "[ Prénom Nom ]", "big": true},
+	{"type": "section", "text": "UN PROJET DE L'ÉQUIPE"},
+	{"type": "name",    "text": "EAX37", "big": true},
 	{"type": "spacer",  "h": 70},
 
 	{"type": "section", "text": "DÉVELOPPEMENT & GAME DESIGN"},
-	{"type": "name",    "text": "[ Prénom Nom ]"},
+	{"type": "name",    "text": "Sakina Davoust — Terminal, narration & systèmes de jeu"},
+	{"type": "name",    "text": "Gianni Seccia — Environnement 3D & interface"},
+	{"type": "name",    "text": "Ismael Dhimene — Noyau OS & système de fenêtrage"},
 	{"type": "spacer",  "h": 50},
 
 	{"type": "section", "text": "ENCADREMENT"},
-	{"type": "name",    "text": "[ Nom de l'encadrant·e ]"},
+	{"type": "name",    "text": "Léo Chiron"},
 	{"type": "spacer",  "h": 50},
 
 	{"type": "section", "text": "REMERCIEMENTS"},
-	{"type": "name",    "text": "[ À compléter ]"},
-	{"type": "name",    "text": "[ À compléter ]"},
+	{"type": "name",    "text": "ESGI"},
+	{"type": "name",    "text": "Skolae"},
+	{"type": "name",    "text": "Toutes celles et ceux qui ont testé, encouragé, supporté"},
 	{"type": "spacer",  "h": 50},
 
 	{"type": "section", "text": "RÉALISÉ AVEC"},
